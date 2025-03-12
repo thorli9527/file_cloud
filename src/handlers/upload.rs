@@ -13,6 +13,7 @@ use moka::future::Cache;
 use mysql::params;
 use mysql::prelude::Queryable;
 use serde::de::Unexpected::Option;
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -52,17 +53,10 @@ pub async fn upload(
     let mut current_path = form.path.to_string();
     let path_id: String;
     if (current_path.is_empty() || current_path == "/" || current_path == "") {
-        current_path = String::from("/");
-        path_id = check_and_save_path(&mut conn, &current_path.clone()).await?;
-        warn!("root path_id {}", path_id);
-        app_state
-            .db_path_cache
-            .insert(current_path.clone(), current_path.clone())
-            .await;
-    } else {
-        path_id = check_and_save_path(&mut conn, &current_path.clone()).await?;
-        warn!("not root path_id {}", path_id);
+        current_path = String::from("");
     }
+    path_id =
+        check_and_save_path(&mut conn, &current_path.clone(), &app_state.db_path_cache).await?;
     let dir_name = build_dir_name(&app_state.root_path, &app_state.dir_create_cache).await?;
 
     for mut file in form.files {
@@ -174,74 +168,85 @@ fn insert_file_name(
 async fn check_and_save_path(
     conn: &mut mysql::PooledConn,
     full_path: &String,
+    file_cache: &Arc<Cache<String, String>>,
 ) -> mysql::error::Result<String, AppError> {
-    let mut new_full_path: String;
-    let root:bool;
-    if (full_path.starts_with("/")) {
-        new_full_path = full_path.chars().skip(1).collect::<String>();
-    } else {
-        new_full_path = full_path.clone();
+    //判断缓存里是否存在文件夹
+    let option = file_cache.get(full_path).await;
+    let cache_dir_id = match option {
+        Some(option) => option,
+        None => "".to_string(),
+    };
+    if (!cache_dir_id.is_empty()) {
+        return Ok(cache_dir_id);
     }
-    if (new_full_path.eq("/")||new_full_path.eq("")) {
+    let root: bool;
+    if (full_path.eq("")) {
         root = true;
+    } else {
+        root = false;
     }
-    else{
-        root=false;
-    }
-
-    let path_list = new_full_path.split("/").collect::<Vec<&str>>();
-    let mut current_dir :String=String::from("");
+    let path_list = &full_path.split("/").collect::<Vec<&str>>();
+    let mut current_dir: String = String::from("");
     let mut current_path_info;
-    let mut parent_id :String=String::from("");
+    let mut parent_id: String = String::from("");
 
-    let mut finally_id:String=String::new();
+    let mut finally_id: String = String::new();
     for path_item in path_list.iter() {
         if (current_dir.is_empty()) {
             current_dir = format!("{}", path_item);
         } else {
             current_dir = format!("{}/{}", current_dir, &path_item);
         }
-        let path_list: Vec<PathInfo> = conn.exec_map(
-            "SELECT id,root,path,parent,full_path FROM path_info where full_path=:full_path",
-            params! {
-                "full_path" => &current_dir,
-            },
-            |(id, root, path, parent, full_path)| PathInfo {
-                id,
-                root,
-                path,
-                parent,
-                full_path,
-            },
-        )?;
+        let option = file_cache.get(&current_dir).await;
+        let cache_dir_id = match option {
+            Some(option) => option,
+            None => "".to_string(),
+        };
+        if (cache_dir_id.is_empty()) {
+            let path_list: Vec<PathInfo> = conn.exec_map(
+                "SELECT id,root,path,parent,full_path FROM path_info where full_path=:full_path",
+                params! {
+                    "full_path" => &current_dir,
+                },
+                |(id, root, path, parent, full_path)| PathInfo {
+                    id,
+                    root,
+                    path,
+                    parent,
+                    full_path,
+                },
+            )?;
 
-        let mut has_db_dir = false;
-        if path_list.len() == 1 {
-            current_path_info = &path_list[0];
-            has_db_dir = true;
-            parent_id = current_path_info.clone().id;
-            finally_id=parent_id.clone();
-        }
-
-        if (!has_db_dir) {
-
-
-            let path_id = Uuid::new_v4().to_string();
-            conn.exec_drop(
-                "
+            let mut has_db_dir = false;
+            if path_list.len() == 1 {
+                current_path_info = &path_list[0];
+                has_db_dir = true;
+                parent_id = current_path_info.clone().id;
+                finally_id = parent_id.clone();
+                //置入缓存
+                file_cache.insert(parent_id.clone(), current_path_info.full_path.clone());
+            }
+            if (!has_db_dir) {
+                let path_id = Uuid::new_v4().to_string();
+                conn.exec_drop(
+                    "
             INSERT INTO path_info ( id,root, path, parent,full_path)
             VALUES (:id, :root, :path, :parent, :full_path)
             ",
-                params! {
-                    "id" => &path_id,
-                    "root" => root,
-                    "path" => &path_item,
-                    "parent" => &parent_id,
-                    "full_path" => &current_dir,
-                },
-            )?;
-            parent_id = path_id.clone();
-            finally_id = path_id;
+                    params! {
+                        "id" => &path_id,
+                        "root" => root,
+                        "path" => &path_item,
+                        "parent" => &parent_id,
+                        "full_path" => &current_dir,
+                    },
+                )?;
+                file_cache.insert(path_id.clone(), current_dir.clone());
+                parent_id = path_id.clone();
+                finally_id = path_id.clone();
+            }
+        } else {
+            return Ok((finally_id));
         }
     }
     return Ok((finally_id));
