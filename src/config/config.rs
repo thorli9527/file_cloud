@@ -1,11 +1,7 @@
-use serde::Deserialize;
-use std::fs;
-use std::path::Path;
 use config::Config;
 use moka::future::Cache;
+use serde::Deserialize;
 use std::sync::Arc;
-use std::time::Duration;
-use crate::db;
 
 #[derive(Debug, Deserialize,Clone)]
 pub struct AppConfig {

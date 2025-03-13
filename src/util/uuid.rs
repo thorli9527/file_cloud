@@ -1,8 +1,5 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-use rand::{Rng, thread_rng};
-use rand::prelude::IndexedRandom;
 use rand::seq::IteratorRandom;
-use rand::seq::SliceRandom;
+use std::time::{SystemTime, UNIX_EPOCH};
 const      UUID_CHARS: &str = "0123456789abcdefghijklmnopqrstuvwxyz";
 ///
 /// 生成

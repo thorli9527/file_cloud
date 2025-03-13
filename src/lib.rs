@@ -11,7 +11,7 @@ pub mod resp;
 pub use resp::*;
 pub mod swagger;
 pub mod util;
-pub use util::*;
 pub use swagger::*;
+pub use util::*;
 
 

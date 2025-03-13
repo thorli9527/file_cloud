@@ -1,4 +1,3 @@
-use mysql::prelude::*;
 use mysql::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;

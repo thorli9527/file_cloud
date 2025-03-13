@@ -1,16 +1,17 @@
 mod config;
 mod db;
 
-use actix_web::{App, HttpServer, web};
+use actix_web::{web, App, HttpServer};
 use env_logger::Builder;
 use file_cloud::config::AppState;
-use file_cloud::{ApiDoc, AppConfig, handlers};
-use log::{LevelFilter, info};
+use file_cloud::{handlers, ApiDoc, AppConfig};
+use log::{info, LevelFilter};
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi; // ✅ Use a single path everywhere
+use utoipa_swagger_ui::SwaggerUi;
+// ✅ Use a single path everywhere
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

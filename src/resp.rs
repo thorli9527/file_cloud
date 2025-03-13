@@ -1,7 +1,6 @@
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt::Debug;
-use actix_multipart::form::text::Text;
 use utoipa::{OpenApi, ToSchema};
 // 统一返回vo
 #[derive(Serialize, Debug, Clone)]
