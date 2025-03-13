@@ -54,11 +54,11 @@ pub async fn upload(
     let path_id: String;
     if (current_path.is_empty() || current_path == "/" || current_path == "") {
         current_path = String::from("");
+        path_id=current_path.clone();
     }
-
-    path_id = check_and_save_path(&mut conn, &current_path.clone(), &app_state.db_path_cache).await?;
-
-
+    else{
+        path_id = check_and_save_path(&mut conn, &current_path.clone(), &app_state.db_path_cache).await?;
+    }
 
     let dir_name = build_dir_name(&app_state.root_path, &app_state.dir_create_cache).await?;
 
@@ -152,11 +152,18 @@ fn insert_file_name(
     } else {
         current_thumbnail_status = true;
     }
+    let root:bool;
+    if(path_ref.eq("")){
+        root = true;
+    }
+    else{
+        root = false;
+    }
     conn.exec_drop(
         "
         insert into file_info
-        (id,path_ref,file_name,file_type,image_type,items,size,thumbnail_status)VALUES
-        (:id,:path_ref,:file_name,:file_type,:image_type,:items,:size,:thumbnail_status)
+        (id,path_ref,file_name,file_type,image_type,items,size,thumbnail_status,root)VALUES
+        (:id,:path_ref,:file_name,:file_type,:image_type,:items,:size,:thumbnail_status,:root)
         ",
         params! {
             "id" => &id,
@@ -166,7 +173,8 @@ fn insert_file_name(
             "image_type" => image_type.to_string(),
             "items" => items_str,
             "size" => size,
-            "thumbnail_status" => current_thumbnail_status
+            "thumbnail_status" => current_thumbnail_status,
+            "root" => root
         },
     )?;
     return Ok(id);
@@ -283,7 +291,7 @@ async fn build_dir_name(
     //获取年
     let year = &now.year();
     let year_path_str = format!("{}/{}", root, year);
-    if let None = cache.get(&year.to_string()).await {
+    if let None = cache.get(&year_path_str.to_string()).await {
         let year_path = Path::new(&year_path_str);
         if (!year_path.exists()) {
             std::fs::create_dir_all(year_path);

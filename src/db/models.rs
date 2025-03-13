@@ -129,6 +129,7 @@ impl Display for ImageType {
 #[derive(Debug, Deserialize, Clone)]
 pub struct FileInfo {
     pub id: String,
+    pub root:bool,
     pub path_ref: String,
     pub name: String,
     pub file_type: FileType,
