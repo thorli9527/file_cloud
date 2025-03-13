@@ -55,8 +55,11 @@ pub async fn upload(
     if (current_path.is_empty() || current_path == "/" || current_path == "") {
         current_path = String::from("");
     }
-    path_id =
-        check_and_save_path(&mut conn, &current_path.clone(), &app_state.db_path_cache).await?;
+
+    path_id = check_and_save_path(&mut conn, &current_path.clone(), &app_state.db_path_cache).await?;
+
+
+
     let dir_name = build_dir_name(&app_state.root_path, &app_state.dir_create_cache).await?;
 
     for mut file in form.files {
@@ -101,6 +104,12 @@ pub async fn upload(
         let fid = Uuid::new_v4();
         let file_name = file.file_name.as_ref().unwrap();
         let file_type = FileType::get_file_type(file_name);
+        let thumbnail_status_tem: &bool;
+        if (file_type != FileType::IMAGE) {
+            thumbnail_status_tem = &true;
+        } else {
+            thumbnail_status_tem = &form.thumbnail_status;
+        }
         insert_file_name(
             &mut conn,
             fid.to_string(),
@@ -109,7 +118,7 @@ pub async fn upload(
             &file_type,
             uploaded_files,
             &file.size,
-            &form.thumbnail_status,
+            thumbnail_status_tem,
         )?;
     }
     Ok(web::Json(BaseResponse::ok_no_result()))
@@ -139,9 +148,9 @@ fn insert_file_name(
     };
     let current_thumbnail_status;
     if (image_type != ImageType::EMPTY && *thumbnail_status) {
-        current_thumbnail_status = true;
-    } else {
         current_thumbnail_status = false;
+    } else {
+        current_thumbnail_status = true;
     }
     conn.exec_drop(
         "
@@ -168,10 +177,10 @@ fn insert_file_name(
 async fn check_and_save_path(
     conn: &mut mysql::PooledConn,
     full_path: &String,
-    file_cache: &Arc<Cache<String, String>>,
+    db_path_cache: &Arc<Cache<String, String>>,
 ) -> mysql::error::Result<String, AppError> {
     //判断缓存里是否存在文件夹
-    let option = file_cache.get(full_path).await;
+    let option = db_path_cache.get(&full_path.to_string()).await;
     let cache_dir_id = match option {
         Some(option) => option,
         None => "".to_string(),
@@ -197,13 +206,13 @@ async fn check_and_save_path(
         } else {
             current_dir = format!("{}/{}", current_dir, &path_item);
         }
-        let option = file_cache.get(&current_dir).await;
+        let option = db_path_cache.get(&current_dir.to_string()).await;
         let cache_dir_id = match option {
             Some(option) => option,
             None => "".to_string(),
         };
         if (cache_dir_id.is_empty()) {
-            let path_list: Vec<PathInfo> = conn.exec_map(
+            let list_db: Vec<PathInfo> = conn.exec_map(
                 "SELECT id,root,path,parent,full_path FROM path_info where full_path=:full_path",
                 params! {
                     "full_path" => &current_dir,
@@ -218,13 +227,13 @@ async fn check_and_save_path(
             )?;
 
             let mut has_db_dir = false;
-            if path_list.len() == 1 {
-                current_path_info = &path_list[0];
+            if list_db.len() == 1 {
+                current_path_info = &list_db[0];
                 has_db_dir = true;
                 parent_id = current_path_info.clone().id;
                 finally_id = parent_id.clone();
                 //置入缓存
-                file_cache.insert(parent_id.clone(), current_path_info.full_path.clone());
+                &db_path_cache.insert(current_dir.clone(), finally_id.clone()).await;
             }
             if (!has_db_dir) {
                 let path_id = Uuid::new_v4().to_string();
@@ -241,7 +250,7 @@ async fn check_and_save_path(
                         "full_path" => &current_dir,
                     },
                 )?;
-                file_cache.insert(path_id.clone(), current_dir.clone());
+                db_path_cache.insert(current_dir.clone(), path_id.clone()).await;
                 parent_id = path_id.clone();
                 finally_id = path_id.clone();
             }
@@ -274,8 +283,7 @@ async fn build_dir_name(
     //获取年
     let year = &now.year();
     let year_path_str = format!("{}/{}", root, year);
-    if let Some(path) = cache.get(&year.to_string()).await {
-    } else {
+    if let None = cache.get(&year.to_string()).await {
         let year_path = Path::new(&year_path_str);
         if (!year_path.exists()) {
             std::fs::create_dir_all(year_path);
@@ -286,8 +294,7 @@ async fn build_dir_name(
     let day = &now.date_naive();
     let day_index = &day.ordinal(); // 获取一年中的第几天（1-366）
     let day_path_str = format!("{}/{}/{}", &root, year, day_index);
-    if let Some(path) = cache.get(&day_path_str.to_string()).await {
-    } else {
+    if let None = cache.get(&day_path_str.to_string()).await {
         let day_path = Path::new(&day_path_str);
         if (!day_path.exists()) {
             std::fs::create_dir_all(day_path);
@@ -299,8 +306,7 @@ async fn build_dir_name(
     let minutes_of_day = &now.hour() * 60 + &now.minute();
 
     let minutes_path_str = format!("{}/{}/{}/{}", &root, &year, &day_index, minutes_of_day);
-    if let Some(path) = cache.get(&minutes_path_str.to_string()).await {
-    } else {
+    if let None = cache.get(&minutes_path_str.to_string()).await {
         let minutes_path = Path::new(&minutes_path_str);
         if (!minutes_path.exists()) {
             std::fs::create_dir_all(minutes_path);

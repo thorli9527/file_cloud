@@ -25,14 +25,14 @@ async fn main() -> std::io::Result<()> {
     let config = AppState::from_env();
     let dir_create_cache: Arc<Cache<String, String>> = Arc::new(
         Cache::builder()
-            .time_to_live(Duration::from_secs(120)) // 设置 TTL 60 秒
+            .time_to_live(Duration::from_secs(60*60*24)) // 设置 TTL 60 秒
             .max_capacity(1000) // 最大存储 1000 个键值
             .build(),
     );
 
     let db_cache: Arc<Cache<String, String>> = Arc::new(
         Cache::builder()
-            .time_to_live(Duration::from_secs(120)) // 设置 TTL 60 秒
+            .time_to_live(Duration::from_secs(60*60*24)) // 设置 TTL 60 秒
             .max_capacity(1000) // 最大存储 1000 个键值
             .build(),
     );
