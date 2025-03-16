@@ -1,3 +1,4 @@
+use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
 use thiserror::Error;
@@ -12,8 +13,10 @@ pub enum AppError {
     InternalError(String),
     #[error("Internal Server Error {0}")]
     RedisError(String),
-    #[error("Database Error: {0}")]
-    MySqlError(#[from] mysql::error::Error),
+    #[error("MultipartError Error: {0}")]
+    MultipartError(#[from] MultipartError),
+    #[error("io Error: {0}")]
+    IoError(#[from] std::io::Error),
 }
 
 /// 将错误序列化为 JSON 响应
@@ -32,7 +35,8 @@ impl ResponseError for AppError {
             AppError::InvalidInput(_) => actix_web::http::StatusCode::BAD_REQUEST,
             AppError::InternalError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::RedisError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::MySqlError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::IoError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::MultipartError(_) => actix_web::http::StatusCode::BAD_REQUEST,
         };
 
         HttpResponse::build(status_code).json(ErrorResponse {
@@ -40,4 +44,3 @@ impl ResponseError for AppError {
         })
     }
 }
-

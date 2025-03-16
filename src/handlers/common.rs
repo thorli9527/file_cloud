@@ -13,6 +13,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[post("/status")]
-pub async fn status() ->Result<impl Responder,AppError> {
+pub async fn status() -> Result<impl Responder, AppError> {
     Ok(web::Json(BaseResponse::ok_no_result()))
 }

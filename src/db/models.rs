@@ -1,18 +1,10 @@
-use mysql::*;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use sqlx::{FromRow, MySqlPool, Type};
+use std::fmt::Display;
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PathInfo {
-    pub id: String,
-    pub root: bool,
-    pub path: String,
-    pub parent: String,
-    pub full_path: String,
-}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct FileItem {
     pub id: String,
@@ -20,7 +12,9 @@ pub struct FileItem {
     pub url: String,
 }
 
-#[derive(Debug, Deserialize, Clone,PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
+#[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
+#[sqlx(rename_all = "lowercase")]
 pub enum FileType {
     IMAGE,
     SVG,
@@ -41,7 +35,7 @@ impl FileType {
             .unwrap_or("")
             .to_lowercase();
         match ext.as_str() {
-            "jpg" | "jpeg" | "png" | "gif" | "bmp" |"tif"| "tiff" | "webp" => FileType::IMAGE,
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tif" | "tiff" | "webp" => FileType::IMAGE,
             "svg" | "ai" | "eps" => FileType::SVG,
             "mp4" | "mkv" | "avi" | "mov" | "flv" => FileType::VIDEO,
             "mp3" | "wav" | "flac" | "aac" => FileType::AUDIO,
@@ -55,26 +49,11 @@ impl FileType {
             _ => FileType::NORMAL,
         }
     }
-}
+ }
 
-impl Display for FileType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            FileType::SVG => write!(f, "svg"),
-            FileType::TEXT => write!(f, "text"),
-            FileType::SCRIPT => write!(f, "script"),
-            FileType::DOC => write!(f, "doc"),
-            FileType::EXCEL => write!(f, "excel"),
-            FileType::NORMAL => write!(f, "normal"),
-            FileType::IMAGE => write!(f, "image"),
-            FileType::VIDEO => write!(f, "video"),
-            FileType::AUDIO => write!(f, "audio"),
-            FileType::ZIP => write!(f, "zip"),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone,PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
+#[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
+#[sqlx(rename_all = "lowercase")]
 pub enum ImageType {
     WebP,
     SVG,
@@ -85,8 +64,9 @@ pub enum ImageType {
     TIFF,
     TIF,
     BMP,
-    EMPTY
+    EMPTY,
 }
+
 impl ImageType {
     pub fn get_image_type(file_path: &str) -> ImageType {
         let ext = Path::new(file_path)
@@ -108,36 +88,51 @@ impl ImageType {
         }
     }
 }
-impl Display for ImageType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ImageType::WebP => write!(f, "webp"),
-            ImageType::GIF => write!(f, "gif"),
-            ImageType::JPG => write!(f, "jpg"),
-            ImageType::JPEG => write!(f, "jpeg"),
-            ImageType::PNG => write!(f, "png"),
-            ImageType::TIFF => write!(f, "tiff"),
-            ImageType::TIF => write!(f, "tif"),
-            ImageType::BMP => write!(f, "bmp"),
-            ImageType::SVG => write!(f, "svg"),
-            ImageType::EMPTY => write!(f, "empty"),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct FileInfo {
     pub id: String,
-    pub root:bool,
+    pub root: bool,
     pub path_ref: String,
     pub name: String,
     pub file_type: FileType,
-    pub items: Vec<FileItem>,
+    pub items:String,
     pub image_type: ImageType,
+    pub size: u32,
     pub thumbnail: String,
     pub thumbnail_status: bool,
 }
 
-pub fn get_conn(url: String) -> mysql::Pool {
-    Pool::new(url.as_str()).unwrap()
+
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
+pub struct FileInfoTem {
+    pub id: String,
+    pub file_name: String,
+    pub file_type: FileType,
+    pub items:String,
+    pub image_type: ImageType,
+    pub size: i32,
+    pub thumbnail: Option<String>,
+    pub thumbnail_status: bool,
+
+    // pub id: String,
+    // pub file_name: String,
+    // pub file_type: FileType,
+    // pub items: String,
+    // pub image_type: ImageType,
+    // pub thumbnail: String,
+    // pub size: u32,
+    // pub thumbnail_status: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
+pub struct PathInfo {
+    pub id: String,
+    pub root: bool,
+    pub path: String,
+    pub parent: String,
+    pub full_path: String,
+}
+
+pub async fn get_conn(url: String) -> MySqlPool {
+    return MySqlPool::connect(&url).await.expect("Failed to connect to database");
 }

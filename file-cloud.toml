@@ -3,4 +3,11 @@ url = "mysql://file_root:file_root@100.91.12.48:3306/file-server"
 [server]
 host = "127.0.0.1"
 port = 8080
-root_path="./upload"
+root_path = "./upload"
+[logs]
+global = "trace"
+trace = "actix_web"
+debug = ""
+error = ""
+warn = ""
+info = ""
