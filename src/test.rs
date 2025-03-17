@@ -1,36 +1,11 @@
-use actix_multipart::form::{json::Json as MpJson, tempfile::TempFile, MultipartForm};
-use actix_web::{middleware::Logger, post, App, HttpServer, Responder};
-use serde::Deserialize;
+use std::path::Path;
 
-#[derive(Debug, Deserialize)]
-struct Metadata {
-    name: String,
-}
+fn main() {
+    let file_path = "/home/user/documents/file.txt";
+    let parent_dir = Path::new(file_path).parent();
 
-#[derive(Debug, MultipartForm)]
-struct UploadForm {
-    #[multipart(limit = "500MB")]
-    file: TempFile,
-    json: MpJson<Metadata>,
-}
-
-#[post("/videos")]
-async fn post_video(MultipartForm(form): MultipartForm<UploadForm>) -> impl Responder {
-    format!(
-        "Uploaded file {}, with size: {}\ntemporary file ({}) was deleted\n",
-        form.json.name,
-        form.file.size,
-        form.file.file.path().display(),
-    )
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
-    HttpServer::new(move || App::new().wrap(Logger::default()).service(post_video).wrap(Logger::default()))
-        .workers(2)
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    match parent_dir {
+        Some(dir) => println!("文件所在目录: {}", dir.display()),
+        None => println!("无法获取目录"),
+    }
 }

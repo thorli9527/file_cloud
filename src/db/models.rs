@@ -113,15 +113,6 @@ pub struct FileInfoTem {
     pub size: i32,
     pub thumbnail: Option<String>,
     pub thumbnail_status: bool,
-
-    // pub id: String,
-    // pub file_name: String,
-    // pub file_type: FileType,
-    // pub items: String,
-    // pub image_type: ImageType,
-    // pub thumbnail: String,
-    // pub size: u32,
-    // pub thumbnail_status: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow,Clone)]

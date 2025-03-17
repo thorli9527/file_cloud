@@ -3,6 +3,7 @@ mod db;
 mod test;
 
 use actix_web::middleware::Logger;
+use actix_web::web::PayloadConfig;
 use actix_web::{web, App, HttpServer};
 use env_logger::Builder;
 use file_cloud::config::AppState;
@@ -51,8 +52,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::PayloadConfig::new(10_000_000*1024))
-            .app_data(data.clone())
+
             .configure(|cfg| handlers::configure(cfg, data.clone()))
     })
     .keep_alive(actix_web::http::KeepAlive::Timeout(

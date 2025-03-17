@@ -23,7 +23,7 @@ pub struct Metadata {
 
 #[derive(Debug, MultipartForm,ToSchema)]
 pub struct UploadForm {
-    #[multipart(limit = "500MB")]
+    #[multipart(limit = "1024MB")]
     #[schema(value_type = String, format = Binary)]
     pub file: TempFile,
     #[schema(value_type = bool)]
@@ -95,9 +95,9 @@ impl<T: Serialize + Debug> BaseResponse<T> {
         }
     }
 
-    pub fn err_result_msg(msg: String) -> BaseResponse<T> {
+    pub fn err_result_msg(msg: &str) -> BaseResponse<T> {
         BaseResponse {
-            msg: Option::from(msg),
+            msg: Option::from(msg.to_string()),
             code: Option::from("999".to_string()),
             success: false,
             data: None,
