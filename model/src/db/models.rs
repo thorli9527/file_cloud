@@ -1,14 +1,9 @@
-use actix_web::web::Form;
-use file_cloud::AppError;
-use redis::PubSub;
+use common::AppError;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlPool, Type};
-use std::fmt::Display;
 use std::path::Path;
 use std::str::FromStr;
 use strum_macros::EnumIter;
-use utoipa::openapi::security::Password;
-use uuid::Uuid;
 
 #[derive(Debug, EnumIter)]
 pub enum RightType {
@@ -39,6 +34,8 @@ pub struct UserInfo {
     pub id: String,
     pub user_name: String,
     pub password: String,
+    pub access_key:String,
+    pub secret_key:String
 }
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct UserBucket {
@@ -54,7 +51,6 @@ impl UserBucket {
         self.right_str.split(",").for_each(|r| {
             vec.push(RightType::PubReadWrite);
         });
-
         Ok(vec)
     }
 }
@@ -63,7 +59,6 @@ pub struct Bucket {
     pub id: String,
     pub name: String,
     pub thumbnail_size: i32,
-    pub api_key: String,
     pub quota: i32,
     pub current_quota: i32,
 }
@@ -160,6 +155,10 @@ pub struct FileInfo {
     pub thumbnail_status: bool,
 }
 
+impl FileInfo {
+
+}
+
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct FileInfoTem {
     pub id: String,
@@ -172,7 +171,7 @@ pub struct FileInfoTem {
     pub thumbnail_status: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone,Default)]
 pub struct PathInfo {
     pub bucket_id: String,
     pub id: String,
@@ -182,7 +181,8 @@ pub struct PathInfo {
     pub full_path: String,
 }
 
-pub async fn get_conn(url: String) -> MySqlPool {
+
+pub async fn get_conn(url: &String) -> MySqlPool {
     return MySqlPool::connect(&url)
         .await
         .expect("Failed to connect to database");
