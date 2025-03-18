@@ -1,27 +1,26 @@
-mod config;
-mod db;
-mod test;
+mod handlers;
 
+use crate::handlers::configure;
 use actix_web::middleware::Logger;
-use actix_web::web::PayloadConfig;
+use actix_web::web::{Data, PayloadConfig, ServiceConfig};
 use actix_web::{web, App, HttpServer};
+// use app_api::ApiDoc;
+use common::AppState;
 use env_logger::Builder;
-use file_cloud::config::AppState;
-use file_cloud::{handlers, ApiDoc, AppConfig};
 use log::{info, LevelFilter};
+use model::biz_repository::UserRepository;
+use model::{db, BaseRepository, UserInfo};
 use moka::future::Cache;
-use std::str::FromStr;
+use redis::Arg;
 use std::sync::Arc;
 use std::time::Duration;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-// ✅ Use a single path everywhere
+// use model::UserRepository::UserRepository;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // 读取配置文件
     //定议swagger
-    let api_doc = ApiDoc::openapi();
+    // let api_doc = ApiDoc::openapi();
     // 初始化数据库连接池
     let config = AppState::from_env();
     let mut log_builder = AppState::build_log(&config);
@@ -40,20 +39,21 @@ async fn main() -> std::io::Result<()> {
             .build(),
     );
 
-    let app_status = file_cloud::config::AppState {
-        pool: db::get_conn(config.database.url).await,
+    let app_status = AppState {
+        pool: db::get_conn(&config.database.url).await,
         root_path: config.server.root_path.clone(),
         dir_create_cache,
         db_path_cache: db_cache,
     };
     let address_and_port = format!("{}:{}", &config.server.host, &config.server.port);
     info!("Starting server on {}", address_and_port);
-    let data = web::Data::new(app_status);
-
+    let data = web::Data::new(app_status.clone());
+    let pool=Arc::new(db::get_conn(&config.database.url).await);
     HttpServer::new(move || {
         App::new()
-
-            .configure(|cfg| handlers::configure(cfg, data.clone()))
+            .configure(|cfg| {
+                handlers::configure(cfg, data.clone(),pool.clone());
+            })
     })
     .keep_alive(actix_web::http::KeepAlive::Timeout(
         std::time::Duration::from_secs(600),

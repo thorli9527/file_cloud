@@ -1,0 +1,13 @@
+[package]
+name = "model"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common={path = "../common"}
+serde =  { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+actix-web = {workspace = true}
+sqlx = { workspace = true }
+async-trait = "0.1.88"

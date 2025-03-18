@@ -2,7 +2,6 @@ use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use utoipa::{OpenApi, ToSchema};
 // 统一返回vo
 #[derive(Serialize, Debug, Clone)]
 pub struct BaseResponse<T: Serialize + Debug> {
@@ -21,14 +20,11 @@ pub struct Metadata {
     pub path: String,
 }
 
-#[derive(Debug, MultipartForm,ToSchema)]
+#[derive(Debug, MultipartForm)]
 pub struct UploadForm {
     #[multipart(limit = "1024MB")]
-    #[schema(value_type = String, format = Binary)]
     pub file: TempFile,
-    #[schema(value_type = bool)]
     pub is_thumbnail: actix_multipart::form::text::Text<bool>,
-    #[schema(value_type = String)]
     pub path: actix_multipart::form::text::Text<String>,
 }
 

@@ -1,5 +1,5 @@
-use crate::{AppError, BaseResponse};
 use actix_web::{post, web, Responder};
+use common::{AppError, BaseResponse};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(status);

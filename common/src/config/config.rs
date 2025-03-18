@@ -65,27 +65,27 @@ impl AppState {
 
         let logs = &config.logs;
         builder.filter(None, LevelFilter::from_str(&logs.global).unwrap());
-        if (!logs.warn.is_empty()) {
+        if !logs.warn.is_empty() {
             for cfg in logs.warn.split(",") {
                 builder.filter_module(cfg, LevelFilter::Trace);
             }
         }
-        if (!logs.error.is_empty()) {
+        if !logs.error.is_empty(){
             for cfg in logs.error.split(",") {
                 builder.filter_module(cfg, LevelFilter::Error);
             }
         }
-        if (!logs.info.is_empty()) {
+        if !logs.info.is_empty() {
             for cfg in logs.info.split(",") {
                 builder.filter_module(cfg, LevelFilter::Info);
             }
         }
-        if (!logs.debug.is_empty()) {
+        if !logs.debug.is_empty() {
             for cfg in logs.debug.split(",") {
                 builder.filter_module(cfg, LevelFilter::Debug);
             }
         }
-        if (!logs.trace.is_empty()) {
+        if !logs.trace.is_empty() {
             for cfg in logs.trace.split(",") {
                 builder.filter_module(cfg, LevelFilter::Trace);
             }
