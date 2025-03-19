@@ -1,24 +1,17 @@
 pub mod common;
 mod download;
 pub mod upload;
-pub use upload::*;
 pub mod user;
-pub use user::*;
-use user::*;
 pub mod bucket;
-pub use bucket::*;
 mod auth;
-mod swagger;
-use swagger::ApiDoc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use ::common::AppState;
 use actix_web::web;
-use model::{Bucket, BucketRepository, PathInfo, PathRepository, UserBucket, UserBucketRepository, UserInfo};
+use model::{BucketRepository, PathRepository, UserBucketRepository};
 use model::biz_repository::UserRepository;
 use sqlx::MySqlPool;
 use std::sync::Arc;
-use actix_web::web::ServiceConfig;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool: Arc<MySqlPool>)  {
     let user_info:UserRepository = UserRepository::new(pool.clone());
@@ -33,9 +26,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool:
     cfg.app_data(web::Data::new(user_bucket_right));
     common::configure(cfg);
     user::configure(cfg, state.clone());
-    let api_doc = ApiDoc::openapi();
     cfg.service(user::user_list);
-    cfg.service(
-        SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", api_doc.clone()),
-    );
+
 }

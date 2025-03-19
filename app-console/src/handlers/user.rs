@@ -19,10 +19,10 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     post,
     path = "/user/list",
     params(
-       ("hash" = String, description = "The hash of the transaction to query")
+       // ("hash" = String, description = "The hash of the transaction to query")
     ),
     responses(
-        (status = 200, description = "successfully",body = String)
+        (status = 200, description = "successfully",body = UserInfo)
     )
 )]
 #[post("/user/list")]
