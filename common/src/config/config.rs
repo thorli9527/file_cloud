@@ -3,7 +3,6 @@ use env_logger::Builder;
 use log::LevelFilter;
 use moka::future::Cache;
 use serde::Deserialize;
-use sqlx::MySqlPool;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -42,7 +41,6 @@ pub struct ServerConfig {
 }
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: MySqlPool,
     pub root_path: String,
     pub dir_create_cache: Arc<Cache<String, String>>,
     pub db_path_cache: Arc<Cache<String, String>>,
@@ -50,7 +48,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn from_env() -> AppConfig {
-        let mut config = Config::builder()
+        let config = Config::builder()
             .add_source(config::File::with_name("file-cloud.toml").required(true))
             .add_source(config::Environment::with_prefix("APP").separator("_"))
             .build()

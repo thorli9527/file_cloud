@@ -1,5 +1,7 @@
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
+use actix_multipart::form::{MultipartForm, tempfile::TempFile};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sqlx::types::Json;
 use std::fmt::Debug;
 
 // 统一返回vo
@@ -45,9 +47,9 @@ impl BaseResponse<String> {
             data: Some("None".to_string()),
         }
     }
-    pub fn ok_result_msg(msg: String) -> BaseResponse<String> {
+    pub fn ok_result_msg(msg: &str) -> BaseResponse<String> {
         BaseResponse {
-            msg: Option::from(msg),
+            msg: Option::from(msg.to_string()),
             code: None,
             success: true,
             data: Some("None".to_string()),
@@ -131,3 +133,15 @@ impl<T: Serialize + Debug> ResponsePage<T> {
         }
     }
 }
+pub fn result() -> Value {
+    return serde_json::json!({"success":true});
+}
+pub fn result_list<T: Serialize + Debug>(list: Vec<T>)
+    -> Value {
+    return serde_json::json!({"success":true,"data":{"list":list}});
+}
+
+pub fn result_data<T: Serialize + Debug>(data: T) -> Value {
+    return serde_json::json!({"success":true,"data":data});
+}
+

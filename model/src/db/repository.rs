@@ -2,19 +2,24 @@ use async_trait::async_trait;
 use common::AppError;
 use sqlx::mysql::MySqlArguments;
 use sqlx::{Arguments, FromRow};
-use sqlx::{Database, MySqlPool};
+use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
+
 /// 定义 Repository Trait，所有 Repository 都要实现这些方法
 #[async_trait]
 pub trait Repository<T> {
     async fn get_all(&self) -> Result<Vec<T>, AppError>;
-    async fn find_by_id(&self, id: String) -> Result<Option<T>, AppError>;
+    async fn find_by_id(&self, id: String) -> Result<T, AppError>;
     async fn del_by_id(&self, id: String) -> Result<u64, AppError>;
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
+    async fn query_by_sql_for_params(&self,sql:String, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
+    async fn find_by_one(&self,params: HashMap<&str, String>) -> Result<T, AppError>;
     async fn insert(&self, params: HashMap<&str, String>) -> Result<u64, AppError>;
     async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError>;
+
+
 }
 
 /// 泛型 BaseRepository，支持所有表
@@ -47,11 +52,11 @@ where
         return Ok(vec);
     }
 
-    async fn find_by_id(&self, id:String) -> Result<Option<T>, AppError> {
+    async fn find_by_id(&self, id:String) -> Result<T, AppError> {
         let query = format!("SELECT * FROM {} WHERE id = ?", self.table_name);
         let option = sqlx::query_as::<_, T>(&query)
             .bind(id)
-            .fetch_optional(&*self.pool)
+            .fetch_one(&*self.pool)
             .await.unwrap();
         return Ok(option);
     }
@@ -62,6 +67,26 @@ where
         Ok(result.rows_affected())
     }
 
+    async fn find_by_one(&self, params: HashMap<&str, String>) -> Result<T, AppError> {
+        let mut query = format!("SELECT * FROM {} WHERE ", self.table_name);
+        let mut values = vec![];
+
+        for (key, value) in &params {
+            query.push_str(&format!("{} = ? AND ", key));
+            values.push(value.clone());
+        }
+        // 移除最后的 "AND "
+        query.truncate(query.len() - 4);
+
+        let mut sql_query = sqlx::query_as::<_, T>(&query);
+        for value in values {
+            sql_query = sql_query.bind(value);
+        }
+
+        let result = sql_query.fetch_one(&*self.pool).await.unwrap();
+        Ok(result)
+    }
+    
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError> {
         let mut query = format!("SELECT * FROM {} WHERE ", self.table_name);
         let mut values = vec![];
@@ -82,6 +107,27 @@ where
         Ok(result)
     }
 
+    async fn query_by_sql_for_params(&self, sql: String, params: HashMap<&str, String>) -> Result<Vec<T>, AppError> {
+        let mut query = format!("{}", sql);
+        let mut values = vec![];
+
+        for (key, value) in &params {
+            query.push_str(&format!("{} = ? AND ", key));
+            values.push(value.clone());
+        }
+        // 移除最后的 "AND "
+        query.truncate(query.len() - 4);
+
+        let mut sql_query = sqlx::query_as::<_, T>(&query);
+        for value in values {
+            sql_query = sql_query.bind(value);
+        }
+
+        let result = sql_query.fetch_all(&*self.pool).await.unwrap();
+        Ok(result)
+    }
+
+
     async fn insert(&self, params: HashMap<&str, String>) -> Result<u64, AppError> {
         let keys: Vec<&str> = params.keys().cloned().collect();
         let values: Vec<String> = params.values().cloned().collect();
@@ -99,7 +145,7 @@ where
             sql_query = sql_query.bind(value);
         }
         let result = sql_query.execute(&*self.pool).await.unwrap();
-        Ok((result.rows_affected()))
+        Ok(result.rows_affected())
     }
     async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError> {
         let mut query = String::from("UPDATE ");

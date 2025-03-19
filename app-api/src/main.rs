@@ -1,17 +1,11 @@
 mod handlers;
 
-use crate::handlers::configure;
-use actix_web::middleware::Logger;
-use actix_web::web::{Data, PayloadConfig, ServiceConfig};
 use actix_web::{web, App, HttpServer};
 // use app_api::ApiDoc;
 use common::AppState;
-use env_logger::Builder;
-use log::{info, LevelFilter};
-use model::biz_repository::UserRepository;
-use model::{db, BaseRepository, UserInfo};
+use log::info;
+use model::db;
 use moka::future::Cache;
-use redis::Arg;
 use std::sync::Arc;
 use std::time::Duration;
 // use model::UserRepository::UserRepository;
@@ -40,7 +34,6 @@ async fn main() -> std::io::Result<()> {
     );
 
     let app_status = AppState {
-        pool: db::get_conn(&config.database.url).await,
         root_path: config.server.root_path.clone(),
         dir_create_cache,
         db_path_cache: db_cache,

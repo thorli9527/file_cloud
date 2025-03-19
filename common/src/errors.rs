@@ -7,6 +7,8 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub enum AppError {
     #[error("NotFound error: {0}")]
     NotFound(String),
+    #[error("NotFound error: {0}")]
+    NotErrorNoRight(String),
     #[error("Invalid Input: {0}")]
     InvalidInput(String),
     #[error("Internal Server Error {0}")]
@@ -37,6 +39,8 @@ impl ResponseError for AppError {
             AppError::RedisError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::IoError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::MultipartError(_) => actix_web::http::StatusCode::BAD_REQUEST,
+            AppError::NotErrorNoRight(_) => actix_web::http::StatusCode::UNAUTHORIZED,
+
         };
 
         HttpResponse::build(status_code).json(ErrorResponse {

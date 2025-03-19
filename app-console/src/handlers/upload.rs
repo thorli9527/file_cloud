@@ -22,7 +22,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
 const CHUNK_SIZE: usize = 4 * 1024 * 1024; // ✅ 4MB 分片
 
 /// **处理文件上传（4MB 分片）**
-#[post("/upload/{bucket}")]
+#[post("/upload")]
 pub async fn upload_file(
     bucket: web::Path<String>,
     app_state: Data<AppState>,
@@ -32,7 +32,7 @@ pub async fn upload_file(
     file_rep: Data<FileRepository>,
     req: HttpRequest,
     mut payload: Multipart,
-) -> std::result::Result<impl Responder, AppError> {
+) -> Result<impl Responder, AppError> {
     if (bucket.is_empty()) {
         return Err(AppError::NotErrorNoRight("bucket.error".to_owned()));
     }
@@ -45,29 +45,31 @@ pub async fn upload_file(
     };
     if (!bucket_info.pub_write) {
         let secret_key_header = req.headers().get("secret_key");
-        let secret_key = match secret_key_header {
-            Some(secret_key) => secret_key.to_str().unwrap().to_string(),
+        let secret_key: String = match secret_key_header {
+            Some(secret_key) => {
+                let x1 = secret_key.to_str().unwrap();
+                x1.to_string()
+            }
             None => {
                 return Err(AppError::NotErrorNoRight("no.right".to_string()));
             }
         };
+        if (secret_key == "") {}
 
         let access_key = req.headers().get("Access-Key");
         match access_key {
             Some(key) => {
                 params = HashMap::new();
-                let access_key_value = key.to_str().unwrap().to_string();
-                params.insert("access_key", access_key_value);
+                let x = key.to_str().unwrap();
+                params.insert("access_key", x.to_string());
                 params.insert("bucket_name", bucket.to_string());
-                let user_bucket_right_result = user_bucket_right_rep
-                    .dao
-                    .query_by_params(params)
-                    .await?;
+                let user_bucket_right_result =
+                    user_bucket_right_rep.dao.query_by_params(params).await?;
                 let mut has_right: bool=false;
                 for bucket_right in user_bucket_right_result {
                     if bucket_right.right == RightType::Write {
                         has_right = true;
-                        if secret_key==bucket_right.secret_key {
+                        if secret_key != bucket_right.secret_key {
                             return Err(AppError::NotErrorNoRight("no.right".to_string()));
                         }
                     }
@@ -296,7 +298,7 @@ async fn insert_file_name(
 async fn check_and_save_path(
     full_path: &String,
     db_path_cache: &Arc<Cache<String, String>>,
-    path_info_rep:&PathRepository,
+    path_info_rep: &PathRepository,
 ) -> Result<String, AppError> {
     let safe_path = sanitize(&full_path);
     //判断缓存里是否存在文件夹
@@ -336,14 +338,12 @@ async fn check_and_save_path(
             path_info.full_path = current_dir.clone();
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("full_path", current_dir.to_string());
-            let result = path_info_rep.dao.find_by_one(params).await;
-            match result {
+            match path_info_rep.dao.find_by_one(params).await {
                 Ok(info) => {
                     path_info = info;
                     finally_id = path_info.id;
-                },
-                Err(e)=> {
-                    // write!("not.found:{:}", "{}", *path_item);
+                }
+                Err(e) => {
                     params = HashMap::new();
                     let current_id = build_id();
                     params.insert("id", current_id.clone());

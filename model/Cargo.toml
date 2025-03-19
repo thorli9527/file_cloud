@@ -9,5 +9,7 @@ serde =  { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 actix-web = {workspace = true}
+utoipa-swagger-ui.workspace = true
+utoipa.workspace = true
 sqlx = { workspace = true }
 async-trait = "0.1.88"

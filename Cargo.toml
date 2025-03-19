@@ -7,6 +7,8 @@ members = [
     "common"]
 resolver = "2"
 [workspace.dependencies]
+actix-identity={version = "0.8.0"}
+actix-session={version = "0.10.1"}
 actix-web = "4.9"
 dotenvy = "0.15.7"
 moka = { version = "0.12.10", features = ["future"] }

@@ -3,33 +3,17 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlPool, Type};
 use std::path::Path;
 use std::str::FromStr;
-use strum_macros::EnumIter;
-
-#[derive(Debug, EnumIter)]
+use utoipa::{ToSchema};
+use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,ToString)]
+#[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
+#[sqlx(rename_all = "lowercase")]
 pub enum RightType {
-    PubRead,
-    PubWrite,
-    PubReadWrite,
-    PriRead,
-    PriWrite,
-    PriReadWrite,
+    Read,
+    Write,
 }
 
-impl FromStr for RightType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "pub_read" => Ok(RightType::PubRead),
-            "pub_write" => Ok(RightType::PubWrite),
-            "pub_read_write" => Ok(RightType::PubReadWrite),
-            "pri_read" => Ok(RightType::PriRead),
-            "pri_read_write" => Ok(RightType::PriReadWrite),
-            _ => Err(()),
-        }
-    }
-}
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Default,ToSchema)]
 pub struct UserInfo {
     pub id: String,
     pub user_name: String,
@@ -42,17 +26,14 @@ pub struct UserBucket {
     pub id: String,
     pub user_id: String,
     pub bucket_id: String,
-    pub right_str: String,
+    pub right: RightType,
 }
-
-impl UserBucket {
-    fn get_rights(&self) -> Result<Vec<RightType>, AppError> {
-        let mut vec = Vec::new();
-        self.right_str.split(",").for_each(|r| {
-            vec.push(RightType::PubReadWrite);
-        });
-        Ok(vec)
-    }
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct UserBucketRight{
+    pub access_key:String,
+    pub secret_key:String,
+    pub bucket_name:String,
+    pub right: RightType,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Bucket {
@@ -61,9 +42,11 @@ pub struct Bucket {
     pub thumbnail_size: i32,
     pub quota: i32,
     pub current_quota: i32,
+    pub pub_read: bool,
+    pub pub_write: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum FileType {
@@ -102,7 +85,7 @@ impl FileType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum ImageType {
@@ -145,7 +128,7 @@ pub struct FileInfo {
     pub root: bool,
     pub bucket_id: String,
     pub path_ref: String,
-    pub name: String,
+    pub file_name: String,
     pub file_type: FileType,
     pub items: String,
     pub image_type: ImageType,
