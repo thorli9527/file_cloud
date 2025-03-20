@@ -71,6 +71,13 @@ where
                     return Ok(res);
                 })
             }
+            _ if url.path().starts_with("/api-doc/openapi") => {
+                Box::pin(async move {
+                    let res = srv.call(req).await?;
+                    let res = res.map_body(|_, body| EitherBody::new(body));
+                    return Ok(res);
+                })
+            }
             _ => {
                 Box::pin(async move {
                     let auth_header = req.headers().get("Authorization");

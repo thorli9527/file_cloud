@@ -15,7 +15,7 @@ pub enum RightType {
     Write,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema,Clone)]
 pub struct UserInfo {
     pub id: String,
     pub user_name: String,

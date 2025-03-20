@@ -109,7 +109,7 @@ async fn user_new(
                 let message = format!("用户已存在{}", user_name);
                 return Ok(web::Json(result_warn_msg(message.as_str())));
             }
-            _ => return Ok(web::Json(result_error())),
+            _ => return Ok(web::Json(result_error_msg("999"))),
         },
     }
 }
@@ -138,7 +138,7 @@ async fn user_change_key(
             user_rep.dao.change(&info.id.to_string(),params).await?;
         },
         Err(e) => {
-            return Ok(web::Json(result_error()));
+            return Ok(web::Json(result_error(e)));
         }
     }
 
@@ -181,7 +181,7 @@ async fn user_change_password(
            user_rep.dao.change(&info.id.to_string(),params).await?;
        },
        Err(e) => {
-           return Ok(web::Json(result_error()));
+           return Ok(web::Json(result_error(e)));
        }
    }
 

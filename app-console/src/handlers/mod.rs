@@ -1,9 +1,11 @@
-mod auth;
+pub mod auth;
+pub use auth::*;
 pub mod bucket;
 pub mod common;
 mod download;
 pub mod upload;
 pub mod user;
+
 use ::common::AppState;
 use actix_web::web;
 use model::biz_repository::UserRepository;
@@ -27,4 +29,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool:
     common::configure(cfg);
     user::configure(cfg, state.clone());
     cfg.service(user::user_list);
+
+    auth::configure(cfg, state.clone());
 }

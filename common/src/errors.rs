@@ -9,6 +9,8 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub enum AppError {
     #[error("NotFound error: {0}")]
     NotFound(String),
+    #[error("{0}")]
+    BizError(String),
     #[error("NotFound error: {0}")]
     NotErrorNoRight(String),
     #[error("Invalid Input: {0}")]
@@ -45,6 +47,8 @@ impl ResponseError for AppError {
             AppError::MultipartError(_) => actix_web::http::StatusCode::BAD_REQUEST,
             AppError::NotErrorNoRight(_) => actix_web::http::StatusCode::UNAUTHORIZED,
             AppError::DBError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::BizError(_)=>actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+
         };
 
         HttpResponse::build(status_code).json(ErrorResponse {
