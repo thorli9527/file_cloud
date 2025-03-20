@@ -21,7 +21,7 @@ futures-util =  { workspace = true }
 chrono = { workspace = true }
 rand =  { workspace = true }
 sha2 =  { workspace = true }
-hex =  { workspace = true }
+hex.workspace = true
 actix-multipart =  { workspace = true }
 env_logger = { workspace = true }
 uuid = { workspace = true }
@@ -34,3 +34,5 @@ sanitize-filename = { workspace = true }
 image =  { workspace = true }
 webp = { workspace = true }
 sqlx = { workspace = true }
+md-5.workspace = true
+hex-literal = "1.0.0"

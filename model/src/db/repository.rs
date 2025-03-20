@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use common::AppError;
+use common::{AppError, ValueItem};
+use sqlx::MySqlPool;
 use sqlx::mysql::MySqlArguments;
 use sqlx::{Arguments, FromRow};
-use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -14,12 +14,14 @@ pub trait Repository<T> {
     async fn find_by_id(&self, id: String) -> Result<T, AppError>;
     async fn del_by_id(&self, id: String) -> Result<u64, AppError>;
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
-    async fn query_by_sql_for_params(&self,sql:String, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
-    async fn find_by_one(&self,params: HashMap<&str, String>) -> Result<T, AppError>;
+    async fn query_by_sql_for_params(
+        &self,
+        sql: String,
+        params: HashMap<&str, String>,
+    ) -> Result<Vec<T>, AppError>;
+    async fn find_by_one(&self, params: HashMap<&str, String>) -> Result<T, AppError>;
     async fn insert(&self, params: HashMap<&str, String>) -> Result<u64, AppError>;
     async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError>;
-
-
 }
 
 /// 泛型 BaseRepository，支持所有表
@@ -48,22 +50,27 @@ where
 {
     async fn get_all(&self) -> Result<Vec<T>, AppError> {
         let query = format!("SELECT * FROM {}", self.table_name);
-        let vec = sqlx::query_as::<_, T>(&query).fetch_all(&*self.pool).await.unwrap();
+        let vec = sqlx::query_as::<_, T>(&query)
+            .fetch_all(&*self.pool)
+            .await?;
         return Ok(vec);
     }
 
-    async fn find_by_id(&self, id:String) -> Result<T, AppError> {
+    async fn find_by_id(&self, id: String) -> Result<T, AppError> {
         let query = format!("SELECT * FROM {} WHERE id = ?", self.table_name);
         let option = sqlx::query_as::<_, T>(&query)
             .bind(id)
             .fetch_one(&*self.pool)
-            .await.unwrap();
+            .await?;
         return Ok(option);
     }
 
     async fn del_by_id(&self, id: String) -> Result<u64, AppError> {
         let query = format!("DELETE FROM {} WHERE id = ?", self.table_name);
-        let result = sqlx::query(&query).bind(id).execute(&*self.pool).await.unwrap();
+        let result = sqlx::query(&query)
+            .bind(id)
+            .execute(&*self.pool)
+            .await?;
         Ok(result.rows_affected())
     }
 
@@ -83,10 +90,10 @@ where
             sql_query = sql_query.bind(value);
         }
 
-        let result = sql_query.fetch_one(&*self.pool).await.unwrap();
+        let result = sql_query.fetch_one(&*self.pool).await?;
         Ok(result)
     }
-    
+
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError> {
         let mut query = format!("SELECT * FROM {} WHERE ", self.table_name);
         let mut values = vec![];
@@ -103,11 +110,15 @@ where
             sql_query = sql_query.bind(value);
         }
 
-        let result = sql_query.fetch_all(&*self.pool).await.unwrap();
+        let result = sql_query.fetch_all(&*self.pool).await?;
         Ok(result)
     }
 
-    async fn query_by_sql_for_params(&self, sql: String, params: HashMap<&str, String>) -> Result<Vec<T>, AppError> {
+    async fn query_by_sql_for_params(
+        &self,
+        sql: String,
+        params: HashMap<&str, String>,
+    ) -> Result<Vec<T>, AppError> {
         let mut query = format!("{}", sql);
         let mut values = vec![];
 
@@ -123,10 +134,9 @@ where
             sql_query = sql_query.bind(value);
         }
 
-        let result = sql_query.fetch_all(&*self.pool).await.unwrap();
+        let result = sql_query.fetch_all(&*self.pool).await?;
         Ok(result)
     }
-
 
     async fn insert(&self, params: HashMap<&str, String>) -> Result<u64, AppError> {
         let keys: Vec<&str> = params.keys().cloned().collect();
@@ -144,7 +154,7 @@ where
         for value in values {
             sql_query = sql_query.bind(value);
         }
-        let result = sql_query.execute(&*self.pool).await.unwrap();
+        let result = sql_query.execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }
     async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError> {
@@ -163,7 +173,7 @@ where
         }
         query.push_str(" WHERE id = ?");
         args.add(id);
-        sqlx::query_with(&query, args).execute(&*self.pool).await;
+        sqlx::query_with(&query, args).execute(&*self.pool).await?;
         Ok(())
     }
 }

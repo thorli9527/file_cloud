@@ -1,11 +1,13 @@
 use common::AppError;
 use serde::{Deserialize, Serialize};
+use sqlx::types::chrono::{DateTime, Local, Utc};
 use sqlx::{FromRow, MySqlPool, Type};
-use std::path::Path;
+use std::any::Any;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use utoipa::{ToSchema};
 use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,ToString)]
+use utoipa::ToSchema;
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, ToString)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum RightType {
@@ -13,13 +15,13 @@ pub enum RightType {
     Write,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow,Default,ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
 pub struct UserInfo {
     pub id: String,
     pub user_name: String,
     pub password: String,
-    pub access_key:String,
-    pub secret_key:String
+    pub access_key: String,
+    pub secret_key: String,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct UserBucket {
@@ -29,10 +31,10 @@ pub struct UserBucket {
     pub right: RightType,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct UserBucketRight{
-    pub access_key:String,
-    pub secret_key:String,
-    pub bucket_name:String,
+pub struct UserBucketRight {
+    pub access_key: String,
+    pub secret_key: String,
+    pub bucket_name: String,
     pub right: RightType,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -44,9 +46,10 @@ pub struct Bucket {
     pub current_quota: i32,
     pub pub_read: bool,
     pub pub_write: bool,
+    pub create_time: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,AsRefStr)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum FileType {
@@ -85,7 +88,7 @@ impl FileType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type,EnumString,AsRefStr)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum ImageType {
@@ -136,25 +139,12 @@ pub struct FileInfo {
     pub thumbnail: String,
     pub thumbnail_size: i32,
     pub thumbnail_status: bool,
+    pub create_time: i64,
 }
 
-impl FileInfo {
+impl FileInfo {}
 
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct FileInfoTem {
-    pub id: String,
-    pub file_name: String,
-    pub file_type: FileType,
-    pub items: String,
-    pub image_type: ImageType,
-    pub size: i32,
-    pub thumbnail: Option<String>,
-    pub thumbnail_status: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone,Default)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default)]
 pub struct PathInfo {
     pub bucket_id: String,
     pub id: String,
@@ -162,8 +152,8 @@ pub struct PathInfo {
     pub path: String,
     pub parent: String,
     pub full_path: String,
+    pub create_time: i64,
 }
-
 
 pub async fn get_conn(url: &String) -> MySqlPool {
     return MySqlPool::connect(&url)

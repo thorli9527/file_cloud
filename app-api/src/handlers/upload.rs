@@ -59,15 +59,13 @@ pub async fn upload_file(
                 let access_key_value = key.to_str().unwrap().to_string();
                 params.insert("access_key", access_key_value);
                 params.insert("bucket_name", bucket.to_string());
-                let user_bucket_right_result = user_bucket_right_rep
-                    .dao
-                    .query_by_params(params)
-                    .await?;
-                let mut has_right: bool=false;
+                let user_bucket_right_result =
+                    user_bucket_right_rep.dao.query_by_params(params).await?;
+                let mut has_right: bool = false;
                 for bucket_right in user_bucket_right_result {
                     if bucket_right.right == RightType::Write {
                         has_right = true;
-                        if secret_key==bucket_right.secret_key {
+                        if secret_key == bucket_right.secret_key {
                             return Err(AppError::NotErrorNoRight("no.right".to_string()));
                         }
                     }
@@ -296,7 +294,7 @@ async fn insert_file_name(
 async fn check_and_save_path(
     full_path: &String,
     db_path_cache: &Arc<Cache<String, String>>,
-    path_info_rep:&PathRepository,
+    path_info_rep: &PathRepository,
 ) -> Result<String, AppError> {
     let safe_path = sanitize(&full_path);
     //判断缓存里是否存在文件夹
@@ -341,8 +339,8 @@ async fn check_and_save_path(
                 Ok(info) => {
                     path_info = info;
                     finally_id = path_info.id;
-                },
-                Err(e)=> {
+                }
+                Err(e) => {
                     // write!("not.found:{:}", "{}", *path_item);
                     params = HashMap::new();
                     let current_id = build_id();

@@ -134,14 +134,21 @@ impl<T: Serialize + Debug> ResponsePage<T> {
     }
 }
 pub fn result() -> Value {
-    return serde_json::json!({"success":true});
+    serde_json::json!({"success":true})
 }
-pub fn result_list<T: Serialize + Debug>(list: Vec<T>)
-    -> Value {
+pub fn result_error() -> Value {
+    serde_json::json!({"success":false})
+}
+pub fn result_error_msg(msg: &str) -> Value {
+    serde_json::json!({"success":false,"msg":msg})
+}
+pub fn result_warn_msg(msg: &str) -> Value {
+    serde_json::json!({"success":true,"msg":msg})
+}
+pub fn result_list<T: Serialize + Debug>(list: Vec<T>) -> Value {
     return serde_json::json!({"success":true,"data":{"list":list}});
 }
 
 pub fn result_data<T: Serialize + Debug>(data: T) -> Value {
     return serde_json::json!({"success":true,"data":data});
 }
-

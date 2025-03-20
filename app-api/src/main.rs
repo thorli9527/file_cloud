@@ -1,6 +1,6 @@
 mod handlers;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 // use app_api::ApiDoc;
 use common::AppState;
 use log::info;
@@ -41,12 +41,11 @@ async fn main() -> std::io::Result<()> {
     let address_and_port = format!("{}:{}", &config.server.host, &config.server.port);
     info!("Starting server on {}", address_and_port);
     let data = web::Data::new(app_status.clone());
-    let pool=Arc::new(db::get_conn(&config.database.url).await);
+    let pool = Arc::new(db::get_conn(&config.database.url).await);
     HttpServer::new(move || {
-        App::new()
-            .configure(|cfg| {
-                handlers::configure(cfg, data.clone(),pool.clone());
-            })
+        App::new().configure(|cfg| {
+            handlers::configure(cfg, data.clone(), pool.clone());
+        })
     })
     .keep_alive(actix_web::http::KeepAlive::Timeout(
         std::time::Duration::from_secs(600),

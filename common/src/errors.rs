@@ -1,6 +1,8 @@
 use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
+use sqlx::Error;
+use sqlx::error::DatabaseError;
 use thiserror::Error;
 pub type Result<T> = std::result::Result<T, AppError>;
 #[derive(Debug, Error)]
@@ -15,6 +17,8 @@ pub enum AppError {
     InternalError(String),
     #[error("Internal Server Error {0}")]
     RedisError(String),
+    #[error("sqlx error: {0}")]
+    DBError(#[from] Error),
     #[error("MultipartError Error: {0}")]
     MultipartError(#[from] MultipartError),
     #[error("io Error: {0}")]
@@ -40,7 +44,7 @@ impl ResponseError for AppError {
             AppError::IoError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::MultipartError(_) => actix_web::http::StatusCode::BAD_REQUEST,
             AppError::NotErrorNoRight(_) => actix_web::http::StatusCode::UNAUTHORIZED,
-
+            AppError::DBError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         HttpResponse::build(status_code).json(ErrorResponse {

@@ -10,6 +10,6 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 actix-web = {workspace = true}
 utoipa-swagger-ui.workspace = true
-utoipa.workspace = true
+utoipa={workspace = true,features = ["chrono"]}
 sqlx = { workspace = true }
 async-trait = "0.1.88"

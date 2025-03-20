@@ -65,7 +65,7 @@ pub async fn upload_file(
                 params.insert("bucket_name", bucket.to_string());
                 let user_bucket_right_result =
                     user_bucket_right_rep.dao.query_by_params(params).await?;
-                let mut has_right: bool=false;
+                let mut has_right: bool = false;
                 for bucket_right in user_bucket_right_result {
                     if bucket_right.right == RightType::Write {
                         has_right = true;

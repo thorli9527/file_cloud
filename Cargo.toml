@@ -9,6 +9,7 @@ resolver = "2"
 [workspace.dependencies]
 actix-identity={version = "0.8.0"}
 actix-session={version = "0.10.1"}
+
 actix-web = "4.9"
 dotenvy = "0.15.7"
 moka = { version = "0.12.10", features = ["future"] }
@@ -35,7 +36,8 @@ strum = "0.27.1"
 strum_macros = "0.27.1"
 futures = "0.3.31"
 async-stream = "0.3.6"
-sqlx = { version = "0.8.3", features = ["mysql", "runtime-tokio-rustls"] }
+sqlx = { version = "0.8.3", features = ["mysql", "runtime-tokio-rustls","chrono"] }
 sanitize-filename = "0.6.0"
 image = "0.25.5"
 webp = "0.3.0"
+md-5 = "0.10.6"

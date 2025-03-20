@@ -7,9 +7,9 @@
 // use std::path::Path;
 // use uuid::Uuid;
 // use webp::Encoder;
-// 
+//
 // const CHUNK_SIZE: usize = 1 * 100 * 1024;
-// 
+//
 // async fn do_task(conn: &MySqlPool) -> Result<(), AppError> {
 //     let file_list = query_thumbnail_file(conn, FileType::IMAGE).await?;
 //     for file_item in file_list {
@@ -40,7 +40,7 @@
 //     }
 //     Ok(())
 // }
-// 
+//
 // async fn query_thumbnail_file(
 //     conn: &MySqlPool,
 //     file_type: FileType,
@@ -55,7 +55,7 @@
 //         .await.unwrap();
 //     Ok(list_db)
 // }
-// 
+//
 // async fn change_thumbnail_file(
 //     conn: &MySqlPool,
 //     id: &String,

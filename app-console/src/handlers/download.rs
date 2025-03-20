@@ -4,11 +4,11 @@
 // use sqlx::MySqlPool;
 // use std::fs::File;
 // use std::io::Read;
-// 
+//
 // pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>) {
 //     cfg.app_data(state.clone()).service(download);
 // }
-// 
+//
 // #[get("/users/{id}")]
 // async fn get_user(id: web::Path<u32>) -> impl Responder {
 //     HttpResponse::Ok().body(format!("User ID: {}", id))
