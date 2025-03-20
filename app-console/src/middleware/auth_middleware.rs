@@ -81,7 +81,6 @@ where
             _ => {
                 Box::pin(async move {
                     let auth_header = req.headers().get("Authorization");
-                    let mut has_session=false;
                     if let Some(auth_value) = auth_header {
                         if let Ok(auth_str) = auth_value.to_str() {
                             if auth_str.starts_with("Session ") {
