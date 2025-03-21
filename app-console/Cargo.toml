@@ -27,6 +27,7 @@ rand = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 actix-multipart = { workspace = true }
+actix-service.workspace = true
 env_logger = { workspace = true }
 uuid = { workspace = true }
 derive_more = { workspace = true }
@@ -38,5 +39,6 @@ sqlx = { workspace = true }
 sanitize-filename = { workspace = true }
 image = { workspace = true }
 webp = { workspace = true }
-actix-service = "2.0.3"
-lazy_static = "1.5.0"
+lazy_static.workspace = true
+validator.workspace = true
+

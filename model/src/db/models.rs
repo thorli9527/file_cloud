@@ -1,12 +1,18 @@
 use common::AppError;
 use serde::{Deserialize, Serialize};
-use sqlx::types::chrono::{DateTime, Local, Utc};
+use sqlx::types::chrono::{DateTime, Local, NaiveDateTime, Utc};
 use sqlx::{FromRow, MySqlPool, Type};
 use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use async_trait::async_trait;
+use sqlx::mysql::MySqlRow;
 use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
 use utoipa::ToSchema;
+use crate::date_format::date_format;
+
+//查询分页对像
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, ToString)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
@@ -37,16 +43,16 @@ pub struct UserBucketRight {
     pub bucket_name: String,
     pub right: RightType,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema)]
 pub struct Bucket {
     pub id: String,
     pub name: String,
-    pub thumbnail_size: i32,
     pub quota: i32,
     pub current_quota: i32,
     pub pub_read: bool,
     pub pub_write: bool,
-    pub create_time: i64,
+    #[serde(with = "date_format")]
+    pub create_time: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr)]

@@ -25,6 +25,8 @@ pub enum AppError {
     MultipartError(#[from] MultipartError),
     #[error("io Error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("validator error: {0}")]
+    ValidateError(#[from] validator::ValidationError),
 }
 
 /// 将错误序列化为 JSON 响应
@@ -48,6 +50,7 @@ impl ResponseError for AppError {
             AppError::NotErrorNoRight(_) => actix_web::http::StatusCode::UNAUTHORIZED,
             AppError::DBError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BizError(_)=>actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::ValidateError(_) => actix_web::http::StatusCode::BAD_REQUEST,
 
         };
 

@@ -37,4 +37,5 @@ sqlx = {workspace = true}
 sanitize-filename = {workspace = true}
 image = {workspace = true}
 webp = {workspace = true}
-
+lazy_static.workspace = true
+validator.workspace = true

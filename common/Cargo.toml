@@ -36,3 +36,4 @@ webp = { workspace = true }
 sqlx = { workspace = true }
 md-5.workspace = true
 hex-literal = "1.0.0"
+validator.workspace = true

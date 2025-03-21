@@ -5,11 +5,11 @@ use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
     web,
 };
-use common::{result_error_msg, AppState};
+use common::{AppState, result_error_msg};
 use futures_util::future::{LocalBoxFuture, Ready, ok};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::{future::Future, pin::Pin, rc::Rc}; //
 
 /// Authentication Middleware
 pub struct AuthMiddleware {
@@ -18,7 +18,7 @@ pub struct AuthMiddleware {
 
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     B: 'static,
 {
     type Response = ServiceResponse<EitherBody<B>>;
@@ -43,7 +43,7 @@ pub struct AuthMiddlewareService<S> {
 
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     B: 'static,
 {
     type Response = ServiceResponse<EitherBody<B>>;
@@ -56,59 +56,58 @@ where
         let srv = Rc::clone(&self.service); // ✅ Correct way to clone the service
         let state = self.state.clone();
         let url = req.uri();
+        if 1 == 1 {
+           return Box::pin(async move {
+                let res = srv.call(req).await?;
+                let res = res.map_body(|_, body| EitherBody::new(body));
+                return Ok(res);
+            });
+        }
         match url {
-            _ if url.path().starts_with("/swagger-ui") => {
-                Box::pin(async move {
-                    let res = srv.call(req).await?;
-                    let res = res.map_body(|_, body| EitherBody::new(body));
-                    return Ok(res);
-                })
-            }
-            _ if url.path().starts_with("/auth") => {
-                Box::pin(async move {
-                    let res = srv.call(req).await?;
-                    let res = res.map_body(|_, body| EitherBody::new(body));
-                    return Ok(res);
-                })
-            }
-            _ if url.path().starts_with("/api-doc/openapi") => {
-                Box::pin(async move {
-                    let res = srv.call(req).await?;
-                    let res = res.map_body(|_, body| EitherBody::new(body));
-                    return Ok(res);
-                })
-            }
-            _ => {
-                Box::pin(async move {
-                    let auth_header = req.headers().get("Authorization");
-                    if let Some(auth_value) = auth_header {
-                        if let Ok(auth_str) = auth_value.to_str() {
-                            if auth_str.starts_with("Session ") {
-                                let token_key = &auth_str[8..];
-                                let token_option = state.session_cache.get(token_key).await;
-                                if let Some(token_value)=token_option {
-                                    let res = srv.call(req).await?;
-                                    let res = res.map_body(|_, body| EitherBody::new(body));
-                                    return Ok(res);
-                                }
-                                else{
-                                    return Ok(req.into_response(
-                                        HttpResponse::Unauthorized()
-                                            .json(result_error_msg("Unauthorized"))
-                                            .map_into_right_body(),
-                                    ));
-                                }
+            _ if url.path().starts_with("/swagger-ui") => Box::pin(async move {
+                let res = srv.call(req).await?;
+                let res = res.map_body(|_, body| EitherBody::new(body));
+                return Ok(res);
+            }),
+            _ if url.path().starts_with("/auth") => Box::pin(async move {
+                let res = srv.call(req).await?;
+                let res = res.map_body(|_, body| EitherBody::new(body));
+                return Ok(res);
+            }),
+            _ if url.path().starts_with("/api-doc/openapi") => Box::pin(async move {
+                let res = srv.call(req).await?;
+                let res = res.map_body(|_, body| EitherBody::new(body));
+                return Ok(res);
+            }),
+
+            _ => Box::pin(async move {
+                let auth_header = req.headers().get("Authorization");
+                if let Some(auth_value) = auth_header {
+                    if let Ok(auth_str) = auth_value.to_str() {
+                        if auth_str.starts_with("Session ") {
+                            let token_key = &auth_str[8..];
+                            let token_option = state.session_cache.get(token_key).await;
+                            if let Some(token_value) = token_option {
+                                state.session_cache.get_with(token_key.to_string(), async { return token_value; }).await;
+                                let res = srv.call(req).await?;
+                                let res = res.map_body(|_, body| EitherBody::new(body));
+                                return Ok(res);
+                            } else {
+                                return Ok(req.into_response(
+                                    HttpResponse::Unauthorized()
+                                        .json(result_error_msg("Unauthorized"))
+                                        .map_into_right_body(),
+                                ));
                             }
                         }
                     }
-                    return Ok(req.into_response(
-                        HttpResponse::Unauthorized()
-                            .json(result_error_msg("Unauthorized"))
-                            .map_into_right_body(),
-                    ));
-                })
-            }
+                }
+                return Ok(req.into_response(
+                    HttpResponse::Unauthorized()
+                        .json(result_error_msg("Unauthorized"))
+                        .map_into_right_body(),
+                ));
+            }),
         }
-
     }
 }

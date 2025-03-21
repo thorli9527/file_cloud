@@ -1,5 +1,5 @@
 use actix_web::web::Data;
-use actix_web::{cookie::time::Duration, post, web, Responder};
+use actix_web::{cookie::time::Duration, post, web, HttpRequest, Responder};
 use common::{build_id, result_data, result_error, AppError, AppState, BaseResponse};
 use model::UserRepository;
 use model::*;
@@ -14,6 +14,7 @@ const ONE_MINUTE: Duration = Duration::minutes(60);
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.app_data(state.clone());
     cfg.service(login);
+    cfg.service(logout);
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
@@ -49,8 +50,16 @@ pub async fn login(
         }
     }
 }
-
-async fn logout(state: web::Data<AppState>) -> Result<impl Responder, AppError> {
+#[post("/auth/logout")]
+async fn logout(state: web::Data<AppState>,req: HttpRequest) -> Result<impl Responder, AppError> {
+    let auth_header = req.headers().get("Authorization");
+    if let Some(auth_value) = auth_header {
+        if let Ok(auth_str) = auth_value.to_str() {
+            if auth_str.starts_with("Token ") {
+                let token_key = &auth_str[8..];
+                state.session_cache.remove(token_key);
+            }
+        }
+    }
     Ok(web::Json(BaseResponse::ok_no_result()))
-    // web::Redirect::to("/").using_status_code(StatusCode::FOUND)
 }

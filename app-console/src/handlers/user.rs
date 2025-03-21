@@ -161,7 +161,6 @@ pub struct UserChangePass {
 async fn user_change_password(
     user_rep: web::Data<UserRepository>,
     user: web::Json<UserChangePass>,
-
 ) -> Result<impl Responder, AppError> {
    match  user_rep.find_by_name(user.user_name.to_string()).await{
        Ok(info) => {
