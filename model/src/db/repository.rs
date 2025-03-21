@@ -28,11 +28,11 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
         params: HashMap<&str, String>,
         page_info: &PageInfo,
     ) -> Result<Page<T>, AppError>;
-    async fn query_by_sql(
+    async fn query_by_sql<S: for<'r> sqlx::FromRow<'r, MySqlRow>>(
         &self,
         sql: String,
         params: HashMap<&str, String>,
-    ) -> Result<Vec<T>, AppError>;
+    ) -> Result<Vec<S>, AppError>;
     //query one
     async fn find_by_one(&self, params: HashMap<&str, String>) -> Result<T, AppError>;
     //insert
@@ -128,11 +128,11 @@ where
         Ok(result)
     }
 
-    async fn query_by_sql(
+    async fn query_by_sql<S>(
         &self,
         sql: String,
         params: HashMap<&str, String>,
-    ) -> Result<Vec<T>, AppError> {
+    ) -> Result<Vec<S>, AppError> {
         let mut query = format!("{}", sql);
         let mut values = vec![];
 
@@ -149,7 +149,7 @@ where
         }
 
 
-        let mut sql_query = sqlx::query_as::<_, T>(&query);
+        let mut sql_query = sqlx::query_as::<_, S>(&query);
         for value in values {
             sql_query = sql_query.bind(value);
         }

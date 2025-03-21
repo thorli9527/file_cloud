@@ -1,10 +1,14 @@
 use crate::{
-    BaseRepository, Bucket, FileInfo, PathInfo, Repository, UserBucket, UserBucketRight, UserInfo,
+    BaseRepository, Bucket, FileInfo, PathInfo, Repository, RightType, UserBucket, UserBucketRight,
+    UserBucketRightQueryResult, UserInfo,
 };
-use common::{build_md5, AppError};
-use sqlx::MySqlPool;
+use common::{AppError, build_md5};
+use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
 use std::{str, sync::Arc};
+use utoipa::ToSchema;
+use validator::Validate;
 
 pub struct UserRepository {
     pub dao: BaseRepository<UserInfo>,
@@ -21,7 +25,7 @@ impl UserRepository {
         params.insert("user_name", user_name.to_string());
         return self.dao.find_by_one(params).await;
     }
-    pub async fn login(&self,user_name:String,password:String) -> Result<UserInfo, AppError> {
+    pub async fn login(&self, user_name: String, password: String) -> Result<UserInfo, AppError> {
         let mut params: HashMap<&str, String> = HashMap::new();
         params.insert("user_name", user_name.to_string());
         let user_result = self.dao.find_by_one(params).await;
@@ -80,12 +84,48 @@ impl FileRepository {
 pub struct UserBucketRepository {
     pub dao: BaseRepository<UserBucket>,
 }
-
+#[derive(Debug, Serialize, Deserialize, FromRow,Validate)]
+pub struct BucketInfoResult {
+    name: String,
+    right: RightType,
+}
 impl UserBucketRepository {
     pub fn new(pool: Arc<MySqlPool>) -> Self {
         Self {
             dao: BaseRepository::new(pool, "user_bucket"),
         }
+    }
+
+    pub async fn find_by_user_name(
+        &self,
+        user_name: String,
+    ) -> Result<Vec<BucketInfoResult>, AppError> {
+        if user_name.is_empty() {
+            return Err(AppError::BizError("user_name.is_empty".to_owned()));
+        }
+        let mut params: HashMap<&str, String> = HashMap::new();
+        params.insert("user_name", user_name);
+        let sql = r#"
+            SELECT distinct
+                user_bucket.`right`,
+                bucket.`name`
+            FROM
+                user_bucket
+                INNER JOIN
+                user_info
+                ON
+                    user_bucket.user_id = user_info.id
+                INNER JOIN
+                bucket
+                ON
+                    user_bucket.bucket_id = bucket.id
+            WHERE
+                user_info.user_name = ?")"#;
+        let vec = self
+            .dao
+            .query_by_sql::<BucketInfoResult>(sql.to_string(), params)
+            .await?;
+        Ok(vec)
     }
 }
 

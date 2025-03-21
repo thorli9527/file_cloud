@@ -5,6 +5,8 @@ pub mod common;
 mod download;
 pub mod upload;
 pub mod user;
+pub mod user_bucket;
+pub use user_bucket::*;
 use ::common::AppState;
 use actix_web::web;
 use model::biz_repository::UserRepository;

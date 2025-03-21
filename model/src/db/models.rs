@@ -43,6 +43,13 @@ pub struct UserBucketRight {
     pub bucket_name: String,
     pub right: RightType,
 }
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct UserBucketRightQueryResult {
+    pub bucket_name: String,
+    pub right: RightType,
+}
+
 #[derive(Debug, Serialize, Deserialize, FromRow,ToSchema)]
 pub struct Bucket {
     pub id: String,
