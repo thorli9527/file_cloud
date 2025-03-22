@@ -1,7 +1,8 @@
 use crate::{
     BaseRepository, Bucket, FileInfo, PathInfo, Repository, RightType, UserBucket, UserBucketRight,
-    UserBucketRightQueryResult, UserInfo,
+    UserBucketRightQueryResult, UserInfo, query_by_sql,
 };
+use actix_web::Responder;
 use common::{AppError, build_md5};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlPool};
@@ -84,11 +85,13 @@ impl FileRepository {
 pub struct UserBucketRepository {
     pub dao: BaseRepository<UserBucket>,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow,Validate)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Validate, ToSchema,Clone)]
 pub struct BucketInfoResult {
+    bucket_id: String,
     name: String,
     right: RightType,
 }
+
 impl UserBucketRepository {
     pub fn new(pool: Arc<MySqlPool>) -> Self {
         Self {
@@ -96,17 +99,55 @@ impl UserBucketRepository {
         }
     }
 
+    pub async fn change_right(
+        &self,
+        user_id: String,
+        bucket_id: String,
+        right: RightType,
+    ) -> Result<(), AppError> {
+        let mut params: HashMap<&str, String> = HashMap::new();
+        params.insert("user_id", user_id);
+        params.insert("bucket_id", bucket_id);
+        let list = self.dao.query_by_params(params.clone()).await?;
+        if (list.len() == 1) {
+            params.insert(
+                "right",
+                match right {
+                    RightType::Read => "read",
+                    RightType::Write => "write",
+                    RightType::ReadWrite => "read_write",
+                }
+                .to_string(),
+            );
+            self.dao.change(&list[0].id, params).await?;
+            return Ok(())
+        } else {
+            params.insert(
+                "right",
+                match right {
+                    RightType::Read => "read",
+                    RightType::Write => "write",
+                    RightType::ReadWrite => "read_write",
+                }
+                .to_string(),
+            );
+            self.dao.insert(params.clone());
+        }
+        Ok(())
+    }
+
     pub async fn find_by_user_name(
         &self,
-        user_name: String,
+        user_name: &String,
     ) -> Result<Vec<BucketInfoResult>, AppError> {
         if user_name.is_empty() {
             return Err(AppError::BizError("user_name.is_empty".to_owned()));
         }
         let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_name", user_name);
+        params.insert("user_name", user_name.to_string());
         let sql = r#"
             SELECT distinct
+                bucket.id as bucket_id,
                 user_bucket.`right`,
                 bucket.`name`
             FROM
@@ -120,11 +161,9 @@ impl UserBucketRepository {
                 ON
                     user_bucket.bucket_id = bucket.id
             WHERE
-                user_info.user_name = ?")"#;
-        let vec = self
-            .dao
-            .query_by_sql::<BucketInfoResult>(sql.to_string(), params)
-            .await?;
+                user_info.user_name = ?
+                "#;
+        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
         Ok(vec)
     }
 }

@@ -4,7 +4,6 @@ use serde_json::Value;
 use sqlx::types::Json;
 use std::fmt::Debug;
 use crate::{AppError, Page};
-
 // 统一返回vo
 #[derive(Serialize, Debug, Clone)]
 pub struct BaseResponse<T: Serialize + Debug> {
@@ -157,16 +156,11 @@ pub fn result_warn_msg(msg: &str) -> Value {
     serde_json::json!({"success":true,"msg":msg})
 }
 pub fn result_list<T: Serialize + Debug>(list: Vec<T>) -> Value {
-    return serde_json::json!({"success":true,"data":{"list":list}});
+    return serde_json::json!({"success":true,"data":list});
 }
-///  pub total: i64,
-//     pub data: Vec<T>,
-//     pub page_info: PageInfo,
-
 pub fn result_page<T: Serialize + Debug>(page: Page<T>) -> Value {
     return serde_json::json!({"success":true,"data":page.data,"page":page.page_info});
 }
-
 pub fn result_data<T: Serialize + Debug>(data: T) -> Value {
     return serde_json::json!({"success":true,"data":data});
 }

@@ -13,12 +13,13 @@ use crate::date_format::date_format;
 
 //查询分页对像
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, ToString)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, ToSchema)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum RightType {
     Read,
     Write,
+    ReadWrite
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema,Clone)]
@@ -29,14 +30,14 @@ pub struct UserInfo {
     pub access_key: String,
     pub secret_key: String,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct UserBucket {
     pub id: String,
     pub user_id: String,
     pub bucket_id: String,
     pub right: RightType,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct UserBucketRight {
     pub access_key: String,
     pub secret_key: String,
@@ -44,13 +45,13 @@ pub struct UserBucketRight {
     pub right: RightType,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct UserBucketRightQueryResult {
     pub bucket_name: String,
     pub right: RightType,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone)]
 pub struct Bucket {
     pub id: String,
     pub name: String,
@@ -138,7 +139,7 @@ impl ImageType {
         }
     }
 }
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct FileInfo {
     pub id: String,
     pub root: bool,

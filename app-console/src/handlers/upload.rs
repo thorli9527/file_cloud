@@ -1,9 +1,8 @@
 use actix_multipart::Multipart;
-use actix_web::{HttpRequest, Responder, post, web};
+use actix_web::{post, web, HttpRequest, Responder};
 use chrono::{Datelike, Local, Timelike};
-use common::{AppError, AppState, BaseResponse, build_id};
+use common::{build_id, AppError, AppState, BaseResponse};
 use futures_util::StreamExt;
-use log::info;
 use model::*;
 use moka::future::Cache;
 use sanitize_filename::sanitize;
@@ -13,7 +12,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
-use uuid::Uuid;
 use web::Data;
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.app_data(state.clone()).service(upload_file);

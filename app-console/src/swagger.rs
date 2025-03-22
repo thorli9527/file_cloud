@@ -1,4 +1,5 @@
 use crate::handlers::user::*;
+use crate::handlers::user_bucket::*;
 use utoipa::OpenApi;
 use crate::handlers::auth::*;
 // use crate::handlers::upload::*;
@@ -19,7 +20,11 @@ use model::*;
         handlers::bucket::list,
         handlers::bucket::save,
         handlers::bucket::delete,
+
+        handlers::user_bucket::user_bucket_list,
+        handlers::user_bucket::user_bucket_delete
+
     ),
-    components(schemas(UserInfo,LoginInfo,Bucket))
+    components(schemas(UserInfo,LoginInfo,Bucket,BucketInfoResult))
 )]
 pub struct ApiDoc;

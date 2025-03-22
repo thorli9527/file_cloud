@@ -8,16 +8,27 @@ use std::marker::PhantomData;
 use std::process::id;
 use std::sync::Arc;
 use utoipa::openapi::RefOr::T;
-
+pub async  fn query_by_sql<T: for<'r> FromRow<'r, sqlx::mysql::MySqlRow> +Clone+ Send + Sync + Unpin>
+(
+    pool: Arc<MySqlPool>,
+    sql: &str,
+    params: HashMap<&str, impl AsRef<str>+ std::marker::Send>,
+) -> Result<Vec<T>, AppError> {
+    let mut sql_query = sqlx::query_as::<_, T>(sql);
+    for (key, value) in &params {
+        sql_query = sql_query.bind(value.as_ref());
+    }
+    Ok(sql_query.fetch_all( &*pool).await?)
+}
 /// 定义 Repository Trait，所有 Repository 都要实现这些方法
 #[async_trait]
 pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
     //query all
     async fn get_all(&self) -> Result<Vec<T>, AppError>;
     //find by id
-    async fn find_by_id(&self, id: String) -> Result<T, AppError>;
+    async fn find_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<T, AppError>;
     //delete by id
-    async fn del_by_id(&self, id: String) -> Result<u64, AppError>;
+    async fn del_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<u64, AppError>;
     //query by params
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
     //query count
@@ -28,11 +39,6 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
         params: HashMap<&str, String>,
         page_info: &PageInfo,
     ) -> Result<Page<T>, AppError>;
-    async fn query_by_sql<S: for<'r> sqlx::FromRow<'r, MySqlRow>>(
-        &self,
-        sql: String,
-        params: HashMap<&str, String>,
-    ) -> Result<Vec<S>, AppError>;
     //query one
     async fn find_by_one(&self, params: HashMap<&str, String>) -> Result<T, AppError>;
     //insert
@@ -45,7 +51,7 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
 ///
 #[allow(dead_code)]
 pub struct BaseRepository<T> {
-    pool: Arc<MySqlPool>, // 线程安全的数据库连接池
+    pub pool: Arc<MySqlPool>, // 线程安全的数据库连接池
     pub table_name: &'static str,
     _marker: PhantomData<T>,
 }
@@ -63,7 +69,7 @@ impl<T> BaseRepository<T> {
 #[async_trait]
 impl<T> Repository<T> for BaseRepository<T>
 where
-    T: for<'r> FromRow<'r, sqlx::mysql::MySqlRow> + Send + Sync + Unpin, // 需要实现 `FromRow`
+    T: for<'r> FromRow<'r, sqlx::mysql::MySqlRow> + Send + Sync + Unpin+ Clone, // 需要实现 `FromRow`
 {
     async fn get_all(&self) -> Result<Vec<T>, AppError> {
         let query = format!("SELECT * FROM {}", self.table_name);
@@ -73,18 +79,18 @@ where
         return Ok(vec);
     }
 
-    async fn find_by_id(&self, id: String) -> Result<T, AppError> {
+    async fn find_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<T, AppError> {
         let query = format!("SELECT * FROM {} WHERE id = ?", self.table_name);
         let option = sqlx::query_as::<_, T>(&query)
-            .bind(id)
+            .bind(id.as_ref())
             .fetch_one(&*self.pool)
             .await?;
         return Ok(option);
     }
 
-    async fn del_by_id(&self, id: String) -> Result<u64, AppError> {
+    async fn del_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<u64, AppError> {
         let query = format!("DELETE FROM {} WHERE id = ?", self.table_name);
-        let result = sqlx::query(&query).bind(id).execute(&*self.pool).await?;
+        let result = sqlx::query(&query).bind(id.as_ref()).execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }
 
@@ -103,7 +109,21 @@ where
         for value in values {
             sql_query = sql_query.bind(value);
         }
-
+        let exit_error_option = params.get("exit_error");
+        match exit_error_option {
+            Some(exit_error) => {
+                if exit_error == "true" {
+                    return Ok(sql_query.fetch_one(&*self.pool).await?)
+                }
+            }
+            None => {
+                let list=sql_query.fetch_all(&*self.pool).await?;
+                if(list.len()> 0){
+                    return Ok(list[0].clone());
+                }
+                return Err(AppError::NotFound("Not Found".to_string()));
+            }
+        }
         let result = sql_query.fetch_one(&*self.pool).await?;
         Ok(result)
     }
@@ -120,36 +140,6 @@ where
         query.truncate(query.len() - 4);
 
         let mut sql_query = sqlx::query_as::<_, T>(&query);
-        for value in values {
-            sql_query = sql_query.bind(value);
-        }
-
-        let result = sql_query.fetch_all(&*self.pool).await?;
-        Ok(result)
-    }
-
-    async fn query_by_sql<S>(
-        &self,
-        sql: String,
-        params: HashMap<&str, String>,
-    ) -> Result<Vec<S>, AppError> {
-        let mut query = format!("{}", sql);
-        let mut values = vec![];
-
-        for (key, value) in &params {
-            query.push_str(&format!("{} = ? AND ", key));
-            values.push(value.clone());
-        }
-        if &params.len()> &0 {
-            // 移除最后的 "AND "
-            query.truncate(query.len() - 4);
-        }
-        else{
-            query.truncate(query.len() - 7);
-        }
-
-
-        let mut sql_query = sqlx::query_as::<_, S>(&query);
         for value in values {
             sql_query = sql_query.bind(value);
         }

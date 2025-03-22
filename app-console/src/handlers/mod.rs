@@ -6,15 +6,13 @@ mod download;
 pub mod upload;
 pub mod user;
 pub mod user_bucket;
-pub use user_bucket::*;
-use ::common::AppState;
 use actix_web::web;
+use ::common::AppState;
 use model::biz_repository::UserRepository;
 use model::{BucketRepository, PathRepository, UserBucketRepository};
 use sqlx::MySqlPool;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool: Arc<MySqlPool>) {
     let user_info: UserRepository = UserRepository::new(pool.clone());
@@ -30,6 +28,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool:
     common::configure(cfg);
     user::configure(cfg, state.clone());
     bucket::configure(cfg, state.clone());
-
+    user_bucket::configure(cfg, state.clone());
     auth::configure(cfg, state.clone());
 }

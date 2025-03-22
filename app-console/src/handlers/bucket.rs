@@ -1,5 +1,5 @@
 use actix_web::web::Data;
-use actix_web::{Responder, post, web};
+use actix_web::{post, web, Responder};
 use chrono::Local;
 use common::*;
 use model::*;

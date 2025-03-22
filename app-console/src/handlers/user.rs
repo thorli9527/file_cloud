@@ -1,12 +1,8 @@
-use actix_web::cookie::time::Duration;
-use actix_web::http::StatusCode;
-use actix_web::middleware::Identity;
-use actix_web::web::{Data, service};
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, post, web};
-use common::AppError::DBError;
+use actix_web::web::Data;
+use actix_web::{post, web, Responder};
 use common::{
-    AppError, AppState, BaseResponse, build_id, build_md5, result, result_error, result_error_msg,
-    result_list, result_warn_msg,
+    build_id, build_md5, result, result_error, result_error_msg, result_list, result_warn_msg,
+    AppError, AppState,
 };
 use model::{Repository, UserInfo, UserRepository};
 use serde::{Deserialize, Serialize};

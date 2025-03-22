@@ -5,7 +5,6 @@ use model::UserRepository;
 use model::*;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use sqlx::types::Json;
 use utoipa::ToSchema;
 
 const ONE_MINUTE: Duration = Duration::minutes(60);
