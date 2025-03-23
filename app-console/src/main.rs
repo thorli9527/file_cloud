@@ -27,6 +27,7 @@ async fn main() -> std::io::Result<()> {
     let config = AppState::from_env();
     let mut log_builder = AppState::build_log(&config);
     log_builder.init();
+    //文件夹缓存
     let dir_create_cache: Arc<Cache<String, String>> = Arc::new(
         Cache::builder()
             .time_to_live(Duration::from_secs(60 * 60 * 24)) // 设置 TTL 60 秒
@@ -40,7 +41,7 @@ async fn main() -> std::io::Result<()> {
             .max_capacity(1000) // 最大存储 1000 个键值
             .build(),
     );
-
+    //数据库缓存
     let db_cache: Arc<Cache<String, String>> = Arc::new(
         Cache::builder()
             .time_to_live(Duration::from_secs(60 * 60 * 24)) // 设置 TTL 60 秒

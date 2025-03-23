@@ -9,7 +9,6 @@ pub use repository::*;
 pub mod biz_repository;
 pub mod date_format;
 pub use biz_repository::*;
-use common::AppState;
 pub use date_format::*;
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: Arc<MySqlPool>) {

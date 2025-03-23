@@ -1,15 +1,13 @@
 use crate::{
-    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType, UserBucket,
-    UserBucketRight, UserBucketRightQueryResult, UserInfo, query_by_sql,
+    query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType,
+    UserBucket, UserBucketRight, UserInfo,
 };
-use actix_web::Responder;
-use actix_web::rt::Runtime;
-use common::{AppError, build_md5};
+use common::{build_md5, AppError};
 use serde::{Deserialize, Serialize};
+use sqlx::types::Json;
 use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
 use std::{str, sync::Arc};
-use sqlx::types::Json;
 use utoipa::ToSchema;
 use validator::Validate;
 

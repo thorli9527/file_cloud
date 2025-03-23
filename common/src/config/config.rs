@@ -1,10 +1,10 @@
 use config::Config;
 use env_logger::Builder;
 use log::LevelFilter;
+use moka::future::Cache;
 use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
-use moka::future::Cache;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {

@@ -1,4 +1,4 @@
-use actix_web::{Responder, post, web};
+use actix_web::{post, web, Responder};
 use common::{AppError, BaseResponse};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {

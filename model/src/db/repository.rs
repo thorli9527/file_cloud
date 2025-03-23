@@ -1,13 +1,11 @@
 use async_trait::async_trait;
-use common::{AppError, Page, PageInfo, ValueItem};
-use sqlx::MySqlPool;
+use common::{AppError, Page, PageInfo};
 use sqlx::mysql::{MySqlArguments, MySqlRow};
+use sqlx::MySqlPool;
 use sqlx::{Arguments, FromRow};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::process::id;
 use std::sync::Arc;
-use utoipa::openapi::RefOr::T;
 pub async  fn query_by_sql<T: for<'r> FromRow<'r, sqlx::mysql::MySqlRow> +Clone+ Send + Sync + Unpin>
 (
     pool: Arc<MySqlPool>,

@@ -2,7 +2,6 @@ use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
 use sqlx::Error;
-use sqlx::error::DatabaseError;
 use thiserror::Error;
 pub type Result<T> = std::result::Result<T, AppError>;
 #[derive(Debug, Error)]

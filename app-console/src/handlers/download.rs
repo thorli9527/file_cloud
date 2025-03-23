@@ -1,8 +1,6 @@
-use actix_web::{HttpResponse, Responder, get, web};
-use common::{AppError, AppState, result_error_msg};
+use actix_web::{get, web, HttpResponse, Responder};
+use common::{AppError, AppState};
 use model::{BucketRepository, FileInfo, FileRepository, Repository, RightType, UserBucketRepository};
-use sqlx::{MySqlPool, query_file};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 

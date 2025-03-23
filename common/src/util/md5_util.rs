@@ -1,6 +1,4 @@
-use crate::result;
 use hex::encode;
-use hex_literal::hex;
 use md5;
 use md5::{Digest, Md5};
 
