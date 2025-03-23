@@ -6,7 +6,6 @@ use actix_web::{App, HttpServer, cookie, web};
 use crate::swagger::ApiDoc;
 use actix_session::SessionMiddleware;
 use actix_session::config::PersistentSession;
-use actix_session::storage::CookieSessionStore;
 use actix_web::cookie::Key;
 use actix_web::middleware::Logger;
 use common::AppState;

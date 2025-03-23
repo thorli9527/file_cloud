@@ -1,2 +1,1 @@
-pub mod auth_middleware;
-pub use auth_middleware::*;
+mod auth_middleware;

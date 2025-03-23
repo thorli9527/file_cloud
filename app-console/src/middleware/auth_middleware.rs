@@ -1,15 +1,15 @@
 use actix_service::{Service, Transform};
 use actix_web::{
-    Error, HttpMessage, HttpResponse,
-    body::EitherBody,
-    dev::{ServiceRequest, ServiceResponse},
-    web,
+    body::EitherBody, dev::{ServiceRequest, ServiceResponse}, web,
+    Error,
+    HttpMessage,
+    HttpResponse,
 };
-use common::{AppState, result_error_msg};
-use futures_util::future::{LocalBoxFuture, Ready, ok};
-use std::sync::{Arc, Mutex};
+use common::{result_error_msg, AppState};
+use futures_util::future::{ok, LocalBoxFuture, Ready};
 use std::task::{Context, Poll};
-use std::{future::Future, pin::Pin, rc::Rc}; //
+use std::rc::Rc;
+//
 
 /// Authentication Middleware
 pub struct AuthMiddleware {
