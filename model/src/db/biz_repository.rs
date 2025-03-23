@@ -65,7 +65,7 @@ impl BucketRepository {
             dao: BaseRepository::new(pool, "bucket"),
         }
     }
-    pub async fn find_by_name(&self, name: String) -> Result<Bucket, AppError> {
+    pub async fn find_by_name(&self, name: &String) -> Result<Bucket, AppError> {
         let mut params: HashMap<&str, String> = HashMap::new();
         params.insert("name", name.to_string());
         return self.dao.find_by_one(params).await;
