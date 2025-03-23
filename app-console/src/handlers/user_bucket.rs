@@ -25,8 +25,7 @@ async fn user_bucket_list(
     user_name: web::Path<String>,
     user_bucket_reg: web::Data<UserBucketRepository>,
 ) -> Result<impl Responder, AppError> {
-    let user_bucket_list = user_bucket_reg.find_by_user_name(&*user_name).await?;
-    Ok(web::Json(result_list(user_bucket_list)))
+    Ok(web::Json(result_list(user_bucket_reg.query_by_user_name(&*user_name).await?)))
 }
 
 
@@ -48,7 +47,7 @@ struct UserBucketNew {
 async fn save(
     data: web::Json<UserBucketNew>,
     user_bucket_rep: Data<UserBucketRepository>,
-) -> std::result::Result<impl Responder, AppError> {
+) -> Result<impl Responder, AppError> {
     if let Err(e) = &data.validate() {
         let msg = format!("Validation failed: {:?}", e);
         return Ok(web::Json(result_error_msg(msg.as_str())));

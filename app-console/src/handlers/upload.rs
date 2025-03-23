@@ -1,8 +1,9 @@
 use actix_multipart::Multipart;
-use actix_web::{post, web, HttpRequest, Responder};
+use actix_web::{HttpRequest, Responder, post, web};
 use chrono::{Datelike, Local, Timelike};
-use common::{build_id, AppError, AppState, BaseResponse};
+use common::{AppError, AppState, BaseResponse, build_id};
 use futures_util::StreamExt;
+use log::info;
 use model::*;
 use moka::future::Cache;
 use sanitize_filename::sanitize;
@@ -13,6 +14,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use web::Data;
+
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.app_data(state.clone()).service(upload_file);
 }
@@ -20,72 +22,51 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
 const CHUNK_SIZE: usize = 4 * 1024 * 1024; // ✅ 4MB 分片
 
 /// **处理文件上传（4MB 分片）**
-#[post("/upload")]
+#[post("/upload/{bucket}/{user_id}")]
 pub async fn upload_file(
-    bucket: web::Path<String>,
-    app_state: Data<AppState>,
-    path_info_rep: Data<PathRepository>,
-    bucket_rep: Data<BucketRepository>,
-    user_bucket_right_rep: Data<UserBucketRightRepository>,
-    file_rep: Data<FileRepository>,
-    req: HttpRequest,
+    params: web::Path<(String, String)>,
+    app_state: web::Data<AppState>,
+    path_info_rep: web::Data<PathRepository>,
+    user_bucket_rep: web::Data<UserBucketRepository>,
+    bucket_rep: web::Data<BucketRepository>,
+    file_rep: web::Data<FileRepository>,
     mut payload: Multipart,
 ) -> Result<impl Responder, AppError> {
-    if (bucket.is_empty()) {
-        return Err(AppError::NotErrorNoRight("bucket.error".to_owned()));
-    }
-    let mut params: HashMap<&str, String> = HashMap::new();
-    params.insert("name", bucket.to_string());
-    let bucket_result = bucket_rep.dao.find_by_one(params).await;
-    let bucket_info = match bucket_result {
-        Ok(info) => info,
-        Err(e) => return Err(AppError::NotErrorNoRight(e.to_string())),
-    };
-    if (!bucket_info.pub_write) {
-        let secret_key_header = req.headers().get("secret_key");
-        let secret_key: String = match secret_key_header {
-            Some(secret_key) => {
-                let x1 = secret_key.to_str().unwrap();
-                x1.to_string()
-            }
-            None => {
-                return Err(AppError::NotErrorNoRight("no.right".to_string()));
-            }
-        };
-        if (secret_key == "") {}
+    let (bucket, user_id) = &*params;
+    let user_bucket_list_right = user_bucket_rep.query_by_user_id(user_id).await?;
+    let mut write = false;
 
-        let access_key = req.headers().get("Access-Key");
-        match access_key {
-            Some(key) => {
-                params = HashMap::new();
-                let x = key.to_str().unwrap();
-                params.insert("access_key", x.to_string());
-                params.insert("bucket_name", bucket.to_string());
-                let user_bucket_right_result =
-                    user_bucket_right_rep.dao.query_by_params(params).await?;
-                let mut has_right: bool = false;
-                for bucket_right in user_bucket_right_result {
-                    if bucket_right.right == RightType::Write {
-                        has_right = true;
-                        if secret_key != bucket_right.secret_key {
-                            return Err(AppError::NotErrorNoRight("no.right".to_string()));
-                        }
-                    }
+    for user_bucket_tmp in &user_bucket_list_right {
+        if user_bucket_tmp.name == *bucket {
+            match &user_bucket_tmp.right {
+                RightType::Read => {
+                    write = false;
                 }
-                if !&has_right {
-                    return Err(AppError::NotErrorNoRight("no.right".to_string()));
+                (item) => {
+                    write = true;
                 }
             }
-            None => {
-                return Err(AppError::NotErrorNoRight("no.right".to_string()));
+        }
+    }
+    if !write {
+        let mut parmas: HashMap<&str, String> = HashMap::new();
+        parmas.insert("name", bucket.clone());
+        let bucket_list = bucket_rep.dao.query_by_params(parmas).await?;
+        if bucket_list.len() > 0 {
+            let item = &bucket_list[0];
+            if item.pub_write {
+                write = true;
             }
         }
     }
 
+    if !write {
+        return Err(AppError::NotErrorNoRight("no.right".to_string()));
+    }
+
     let mut path = String::new();
-    let mut is_thumbnail: bool = true;
     let mut file_name: String = String::new();
-    let mut uploaded_files = Vec::new();
+    let mut uploaded_files: Vec<FileItemDto> = Vec::new();
     let mut size: usize = 0;
     while let Some(field) = payload.next().await {
         let mut field = field.unwrap();
@@ -101,18 +82,6 @@ pub async fn upload_file(
                     data.push_str(&String::from_utf8_lossy(&chunk?));
                 }
                 path = data;
-            }
-            "is_thumbnail" => {
-                // 读取普通表单字段（文本）
-                let mut data = String::new();
-                while let Some(chunk) = field.next().await {
-                    data.push_str(&String::from_utf8_lossy(&chunk?));
-                }
-                is_thumbnail = match data.to_lowercase().as_str() {
-                    // "true" | "1" | "on" | "yes" => true,
-                    "false" | "0" | "off" | "no" => false,
-                    _ => true,
-                };
             }
             "file" => {
                 let mut fid = build_id();
@@ -135,7 +104,11 @@ pub async fn upload_file(
                     if buffer.len() >= CHUNK_SIZE {
                         //写入文件
                         let chunk_path = format!("{}/{}", dir_name, fid.clone().to_string());
-                        uploaded_files.push(chunk_path.clone());
+                        let file_item = FileItemDto {
+                            path: chunk_path.clone(),
+                            size: buffer.len() as u32,
+                        };
+                        uploaded_files.push(file_item);
                         let mut file = File::create(&chunk_path).unwrap();
                         file.write_all(&buffer[..CHUNK_SIZE]).unwrap();
 
@@ -146,7 +119,11 @@ pub async fn upload_file(
                 // 处理剩余数据（小于 4MB）
                 if !buffer.is_empty() {
                     let chunk_path = format!("{}/{}", dir_name, fid.clone().to_string());
-                    uploaded_files.push(chunk_path.clone());
+                    let file_item = FileItemDto {
+                        path: chunk_path.clone(),
+                        size: buffer.len() as u32,
+                    };
+                    uploaded_files.push(file_item);
                     let mut file = File::create(&chunk_path).unwrap();
                     file.write_all(&buffer).unwrap();
                 }
@@ -154,32 +131,24 @@ pub async fn upload_file(
             _ => {} // 忽略未知字段
         }
     }
+
     let fid = build_id();
     //s
     let file_type = FileType::get_file_type(&file_name);
-    let mut thumbnail_status_tem: &bool;
-    if file_type != FileType::IMAGE {
-        thumbnail_status_tem = &true;
-    } else {
-        thumbnail_status_tem = &is_thumbnail;
-    }
+
     if path.len() > 128 {
         return Ok(web::Json(BaseResponse::err_result_msg(
             "path name to lang (max=128)",
         )));
     }
-    let mut current_path = path;
+
     let path_id: String;
-    if current_path.is_empty() || current_path == "/" || current_path == "" {
-        current_path = String::from("");
-        path_id = current_path.clone();
+    if path.is_empty() || path == "/" || path == "" {
+        path = String::from("");
+        path_id = path.clone();
     } else {
-        path_id = check_and_save_path(
-            &current_path.clone(),
-            &app_state.db_path_cache,
-            &path_info_rep,
-        )
-        .await?;
+        path_id =
+            check_and_save_path(&path.clone(), &app_state.db_path_cache, &path_info_rep).await?;
     }
     if file_name.len() > 64 {
         return Ok(web::Json(BaseResponse::err_result_msg(
@@ -194,7 +163,6 @@ pub async fn upload_file(
         &file_type,
         uploaded_files,
         &size,
-        thumbnail_status_tem,
     )
     .await?;
     Ok(web::Json(BaseResponse::ok_result_data(fid.to_string())))
@@ -228,39 +196,13 @@ async fn insert_file_name(
     path_ref: &String,
     file_name: &String,
     file_type: &FileType,
-    items: Vec<String>,
+    items: Vec<FileItemDto>,
     size: &usize,
-    thumbnail_status: &bool,
 ) -> Result<(), AppError> {
-    let mut items_str = String::new();
-    for item in items {
-        items_str.push_str(&item);
-        items_str.push_str(",");
-    }
     let image_type = match &file_type {
         FileType::IMAGE => ImageType::get_image_type(file_name),
         _ => ImageType::EMPTY,
     };
-    let mut current_thumbnail_status;
-
-    if image_type != ImageType::EMPTY && *thumbnail_status {
-        current_thumbnail_status = false;
-    } else {
-        current_thumbnail_status = match image_type {
-            ImageType::JPEG => true,
-            ImageType::BMP => true,
-            ImageType::JPG => true,
-            ImageType::PNG => true,
-            ImageType::TIFF => true,
-            ImageType::TIF => true,
-            ImageType::WebP => true,
-            _ => false,
-        };
-        //如果图片小于 100K,则不进行压缩
-        if size > &(CHUNK_SIZE / 10 / 4) {
-            current_thumbnail_status = false;
-        }
-    }
 
     let root: bool;
     if path_ref.eq("") {
@@ -276,9 +218,6 @@ async fn insert_file_name(
     params.insert("file_name", file_name.clone());
     params.insert("file_type", file_type.as_ref().to_string());
     params.insert("image_type", image_type.as_ref().to_string());
-    params.insert("thumbnail_status", thumbnail_status.to_string());
-    params.insert("thumbnail", thumbnail_status.to_string());
-    params.insert("items", items_str);
     params.insert(
         "root",
         match root {
@@ -287,7 +226,7 @@ async fn insert_file_name(
         },
     );
     params.insert("size", size.to_string());
-    file_rep.dao.insert(params);
+    file_rep.insert(params, &items);
     Ok(())
 }
 
@@ -308,7 +247,7 @@ async fn check_and_save_path(
     if !cache_dir_id.is_empty() {
         return Ok(cache_dir_id);
     }
-    let root: bool;
+    let mut root: bool;
     if safe_path.eq("") {
         root = true;
     } else {
@@ -319,7 +258,7 @@ async fn check_and_save_path(
     let mut current_dir: String = String::from("");
     let mut parent_id: String = String::from("");
 
-    let mut finally_id: String = String::new();
+    let mut finally_id = String::new();
     for path_item in path_list.iter() {
         if current_dir.is_empty() {
             current_dir = format!("{}", path_item);
@@ -332,37 +271,39 @@ async fn check_and_save_path(
             None => "".to_string(),
         };
         if cache_dir_id.is_empty() {
-            let mut path_info = PathInfo::default();
+            let mut path_info:PathInfo=PathInfo::default() ;
             path_info.full_path = current_dir.clone();
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("full_path", current_dir.to_string());
-            match path_info_rep.dao.find_by_one(params).await {
-                Ok(info) => {
-                    path_info = info;
-                    finally_id = path_info.id;
+            let list_path = path_info_rep.dao.query_by_params(params).await?;
+
+            if list_path.len() > 0 {
+                path_info = list_path[0].clone();
+                finally_id = path_info.id.clone();
+            } else {
+                params = HashMap::new();
+                let current_id = build_id();
+                params.insert("id", current_id.clone());
+                if parent_id==""{
+                    root=true;
                 }
-                Err(e) => {
-                    params = HashMap::new();
-                    let current_id = build_id();
-                    params.insert("id", current_id.clone());
-                    params.insert(
-                        "root",
-                        match root {
-                            true => "1".to_string(),
-                            false => "0".to_string(),
-                        },
-                    );
-                    params.insert("path", path_item.to_string());
-                    params.insert("parent", parent_id.to_string());
-                    params.insert("full_path", full_path.to_string());
-                    path_info_rep.dao.insert(params).await?;
-                }
+                params.insert(
+                    "root",
+                    match root {
+                        true => "1".to_string(),
+                        false => "0".to_string(),
+                    },
+                );
+                params.insert("path", path_item.to_string());
+                params.insert("parent", parent_id.to_string());
+                params.insert("full_path", full_path.to_string());
+                path_info_rep.dao.insert(params).await?;
+                finally_id=current_id;
+
             }
-        } else {
-            return Ok(finally_id);
         }
     }
-    return Ok(finally_id);
+    return Ok(finally_id.clone());
 }
 
 /// **防止路径遍历攻击**

@@ -1,13 +1,15 @@
 use crate::{
-    BaseRepository, Bucket, FileInfo, PathInfo, Repository, RightType, UserBucket, UserBucketRight,
-    UserBucketRightQueryResult, UserInfo, query_by_sql,
+    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType, UserBucket,
+    UserBucketRight, UserBucketRightQueryResult, UserInfo, query_by_sql,
 };
 use actix_web::Responder;
+use actix_web::rt::Runtime;
 use common::{AppError, build_md5};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
 use std::{str, sync::Arc};
+use sqlx::types::Json;
 use utoipa::ToSchema;
 use validator::Validate;
 
@@ -80,16 +82,41 @@ impl FileRepository {
             dao: BaseRepository::new(pool, "file_info"),
         }
     }
+    pub async fn insert(
+        &self,
+        params: HashMap<&str, String>,
+        items: &Vec<FileItemDto>,
+    ) -> Result<(), AppError> {
+        let mut keys: Vec<&str> = params.keys().cloned().collect();
+        let values: Vec<String> = params.values().cloned().collect();
+
+        let placeholders = vec!["?"; keys.len()].join(", ");
+        keys.push("items");
+        let query = format!(
+            "INSERT INTO {} ({}) VALUES ({})",
+            self.dao.table_name,
+            keys.join(", "),
+            placeholders
+        );
+
+        let mut sql_query = sqlx::query(&query);
+        for value in values {
+            sql_query = sql_query.bind(value);
+        }
+        sql_query = sql_query.bind(Json(items));
+        sql_query.execute(&*self.dao.pool.clone()).await?;
+        Ok(())
+    }
 }
 
 pub struct UserBucketRepository {
     pub dao: BaseRepository<UserBucket>,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Validate, ToSchema,Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Validate, ToSchema, Clone)]
 pub struct BucketInfoResult {
-    bucket_id: String,
-    name: String,
-    right: RightType,
+    pub bucket_id: String,
+    pub name: String,
+    pub right: RightType,
 }
 
 impl UserBucketRepository {
@@ -120,7 +147,7 @@ impl UserBucketRepository {
                 .to_string(),
             );
             self.dao.change(&list[0].id, params).await?;
-            return Ok(())
+            return Ok(());
         } else {
             params.insert(
                 "right",
@@ -136,15 +163,15 @@ impl UserBucketRepository {
         Ok(())
     }
 
-    pub async fn find_by_user_name(
+    pub async fn query_by_user_id(
         &self,
-        user_name: &String,
+        user_id: &String,
     ) -> Result<Vec<BucketInfoResult>, AppError> {
-        if user_name.is_empty() {
-            return Err(AppError::BizError("user_name.is_empty".to_owned()));
+        if user_id.is_empty() {
+            return Err(AppError::BizError("user_id.is_empty".to_owned()));
         }
         let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_name", user_name.to_string());
+        params.insert("user_id", user_id.to_string());
         let sql = r#"
             SELECT distinct
                 bucket.id as bucket_id,
@@ -161,7 +188,38 @@ impl UserBucketRepository {
                 ON
                     user_bucket.bucket_id = bucket.id
             WHERE
-                user_info.user_name = ?
+                user_bucket.user_id = ?
+                "#;
+        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
+        Ok(vec)
+    }
+
+    pub async fn query_by_user_name(
+        &self,
+        user_id: &String,
+    ) -> Result<Vec<BucketInfoResult>, AppError> {
+        if user_id.is_empty() {
+            return Err(AppError::BizError("user_name.is_empty".to_owned()));
+        }
+        let mut params: HashMap<&str, String> = HashMap::new();
+        params.insert("user_name", user_id.to_string());
+        let sql = r#"
+            select distinct
+                bucket.id as bucket_id,
+                user_bucket.`right`,
+                bucket.`name`
+            from
+                user_bucket
+                inner join
+                user_info
+                on
+                    user_bucket.user_id = user_info.id
+                inner join
+                bucket
+                on
+                    user_bucket.bucket_id = bucket.id
+            where
+                user_info.user_name =?
                 "#;
         let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
         Ok(vec)

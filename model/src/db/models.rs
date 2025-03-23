@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use async_trait::async_trait;
 use sqlx::mysql::MySqlRow;
+use sqlx::types::Json;
 use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
 use utoipa::ToSchema;
 use crate::date_format::date_format;
@@ -147,17 +148,19 @@ pub struct FileInfo {
     pub path_ref: String,
     pub file_name: String,
     pub file_type: FileType,
-    pub items: String,
+    pub items: Json<Vec<FileItemDto>>,
     pub image_type: ImageType,
     pub size: u32,
-    pub thumbnail: String,
-    pub thumbnail_size: i32,
-    pub thumbnail_status: bool,
     pub create_time: i64,
 }
 
-impl FileInfo {}
 
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+pub struct FileItemDto{
+    pub path:String,
+    pub size:u32
+}
+impl FileInfo {}
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default)]
 pub struct PathInfo {
     pub bucket_id: String,

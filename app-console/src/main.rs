@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use uuid::Uuid;
 use app_console::AuthMiddleware;
 
 #[actix_web::main]
