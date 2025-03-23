@@ -32,8 +32,15 @@ async fn main() -> std::io::Result<()> {
             .max_capacity(1000) // 最大存储 1000 个键值
             .build(),
     );
-
+    //用户 session
+    let session_cache: Arc<Cache<String, String>> = Arc::new(
+        Cache::builder()
+            .time_to_live(Duration::from_secs(60 * 60 * 24)) // 设置 TTL 60 秒
+            .max_capacity(1000) // 最大存储 1000 个键值
+            .build(),
+    );
     let app_status = AppState {
+        session_cache:session_cache,
         root_path: config.server.root_path.clone(),
         dir_create_cache,
         db_path_cache: db_cache,
@@ -43,8 +50,14 @@ async fn main() -> std::io::Result<()> {
     let data = web::Data::new(app_status.clone());
     let pool = Arc::new(db::get_conn(&config.database.url).await);
     HttpServer::new(move || {
-        App::new().configure(|cfg| {
-            handlers::configure(cfg, data.clone(), pool.clone());
+        App::new()
+            //配置 orm
+            .configure(|cfg| {
+                model::db::configure(cfg,pool.clone())
+            })
+            //配置 控制器
+            .configure(|cfg| {
+            handlers::configure(cfg, data.clone());
         })
     })
     .keep_alive(actix_web::http::KeepAlive::Timeout(

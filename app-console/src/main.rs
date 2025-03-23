@@ -11,7 +11,6 @@ use actix_web::cookie::Key;
 use actix_web::middleware::Logger;
 use common::AppState;
 use log::info;
-use model::db;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,6 +18,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 use app_console::AuthMiddleware;
+use model::db;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -63,8 +63,13 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(AuthMiddleware { state: data.clone() })
+            //配置 orm
             .configure(|cfg| {
-                handlers::configure(cfg, data.clone(), pool.clone());
+                model::db::configure(cfg,pool.clone())
+            })
+            // 配置 控制器
+            .configure(|cfg| {
+                handlers::configure(cfg, data.clone());
             })
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", api_doc.clone()),
