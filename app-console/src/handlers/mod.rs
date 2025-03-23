@@ -1,12 +1,12 @@
-mod auth;
+pub mod auth;
 use auth::*;
-mod bucket;
-mod common;
-mod download;
-mod upload;
-mod user;
-mod user_bucket;
-use actix_web::web;
+pub mod bucket;
+pub mod common;
+pub mod download;
+pub mod upload;
+pub mod user;
+pub mod user_bucket;
+pub use actix_web::web;
 use ::common::AppState;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>) {
