@@ -33,5 +33,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>, pool:
     user_bucket::configure(cfg, state.clone());
     auth::configure(cfg, state.clone());
     upload::configure(cfg, state.clone());
+    download::configure(cfg, state.clone());
 
 }

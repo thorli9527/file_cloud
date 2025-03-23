@@ -89,9 +89,8 @@ impl FileRepository {
     ) -> Result<(), AppError> {
         let mut keys: Vec<&str> = params.keys().cloned().collect();
         let values: Vec<String> = params.values().cloned().collect();
-
-        let placeholders = vec!["?"; keys.len()].join(", ");
         keys.push("items");
+        let  placeholders = vec!["?"; keys.len()].join(", ");
         let query = format!(
             "INSERT INTO {} ({}) VALUES ({})",
             self.dao.table_name,

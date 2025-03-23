@@ -151,7 +151,8 @@ pub struct FileInfo {
     pub items: Json<Vec<FileItemDto>>,
     pub image_type: ImageType,
     pub size: u32,
-    pub create_time: i64,
+    #[serde(with = "date_format")]
+    pub create_time: NaiveDateTime,
 }
 
 
@@ -169,7 +170,8 @@ pub struct PathInfo {
     pub path: String,
     pub parent: String,
     pub full_path: String,
-    pub create_time: i64,
+    #[serde(with = "date_format")]
+    pub create_time: NaiveDateTime,
 }
 
 pub async fn get_conn(url: &String) -> MySqlPool {

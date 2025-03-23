@@ -1,7 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{HttpRequest, Responder, post, web};
 use chrono::{Datelike, Local, Timelike};
-use common::{AppError, AppState, BaseResponse, build_id};
+use common::{AppError, AppState, BaseResponse, build_id, result_error_msg, result_data};
 use futures_util::StreamExt;
 use log::info;
 use model::*;
@@ -35,12 +35,13 @@ pub async fn upload_file(
     let (bucket, user_id) = &*params;
     let user_bucket_list_right = user_bucket_rep.query_by_user_id(user_id).await?;
     let mut write = false;
-
+    let mut bucket_id=String::new();
     for user_bucket_tmp in &user_bucket_list_right {
         if user_bucket_tmp.name == *bucket {
             match &user_bucket_tmp.right {
                 RightType::Read => {
                     write = false;
+                    bucket_id=user_bucket_tmp.bucket_id.clone();
                 }
                 (item) => {
                     write = true;
@@ -53,15 +54,16 @@ pub async fn upload_file(
         parmas.insert("name", bucket.clone());
         let bucket_list = bucket_rep.dao.query_by_params(parmas).await?;
         if bucket_list.len() > 0 {
-            let item = &bucket_list[0];
-            if item.pub_write {
+            let bucket_info = bucket_list[0].clone();
+            if bucket_info.pub_write {
                 write = true;
+                bucket_id= bucket_info.id.clone();
             }
         }
     }
 
     if !write {
-        return Err(AppError::NotErrorNoRight("no.right".to_string()));
+        return Ok(web::Json(result_error_msg("no.right")));
     }
 
     let mut path = String::new();
@@ -94,7 +96,7 @@ pub async fn upload_file(
                     .unwrap()
                     .to_string();
                 if file_name.is_empty() {
-                    return Ok(web::Json(BaseResponse::err_result_msg(
+                    return Ok(web::Json(result_error_msg(
                         "Invalid file_name value",
                     )));
                 }
@@ -137,7 +139,7 @@ pub async fn upload_file(
     let file_type = FileType::get_file_type(&file_name);
 
     if path.len() > 128 {
-        return Ok(web::Json(BaseResponse::err_result_msg(
+        return Ok(web::Json(result_error_msg(
             "path name to lang (max=128)",
         )));
     }
@@ -148,14 +150,15 @@ pub async fn upload_file(
         path_id = path.clone();
     } else {
         path_id =
-            check_and_save_path(&path.clone(), &app_state.db_path_cache, &path_info_rep).await?;
+            check_and_save_path(&bucket_id,&path.clone(), &app_state.db_path_cache, &path_info_rep).await?;
     }
     if file_name.len() > 64 {
-        return Ok(web::Json(BaseResponse::err_result_msg(
+        return Ok(web::Json(result_error_msg(
             "file name to lang (max=64)",
         )));
     }
     insert_file_name(
+        &bucket_id,
         &file_rep,
         fid.clone().to_string(),
         &path_id,
@@ -165,7 +168,7 @@ pub async fn upload_file(
         &size,
     )
     .await?;
-    Ok(web::Json(BaseResponse::ok_result_data(fid.to_string())))
+    Ok(web::Json(result_data(fid.to_string())))
 }
 
 async fn insert_file_error(conn: &MySqlPool, error_files: Vec<String>) -> Result<(), AppError> {
@@ -191,6 +194,7 @@ async fn insert_file_error(conn: &MySqlPool, error_files: Vec<String>) -> Result
 ///
 /// 插入文件
 async fn insert_file_name(
+    bucket_id:&String,
     file_rep: &FileRepository,
     id: String,
     path_ref: &String,
@@ -214,6 +218,7 @@ async fn insert_file_name(
     let i = u32::try_from(*size).unwrap();
     let mut params: HashMap<&str, String> = HashMap::new();
     params.insert("id", id.clone());
+    params.insert("bucket_id", bucket_id.clone());
     params.insert("path_ref", path_ref.clone());
     params.insert("file_name", file_name.clone());
     params.insert("file_type", file_type.as_ref().to_string());
@@ -226,16 +231,20 @@ async fn insert_file_name(
         },
     );
     params.insert("size", size.to_string());
-    file_rep.insert(params, &items);
+    let now = Local::now();
+    params.insert("create_time", now.format("%Y-%m-%d %H:%M:%S").to_string());
+    file_rep.insert(params, &items).await?;
     Ok(())
 }
 
 ///
 /// 检查目录是否存在
 async fn check_and_save_path(
+    bucket_id:&String,
     full_path: &String,
     db_path_cache: &Arc<Cache<String, String>>,
     path_info_rep: &PathRepository,
+
 ) -> Result<String, AppError> {
     let safe_path = sanitize(&full_path);
     //判断缓存里是否存在文件夹
@@ -275,6 +284,7 @@ async fn check_and_save_path(
             path_info.full_path = current_dir.clone();
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("full_path", current_dir.to_string());
+            params.insert("bucket_id", bucket_id.to_string());
             let list_path = path_info_rep.dao.query_by_params(params).await?;
 
             if list_path.len() > 0 {
@@ -294,8 +304,11 @@ async fn check_and_save_path(
                         false => "0".to_string(),
                     },
                 );
+                params.insert("bucket_id", bucket_id.to_string());
                 params.insert("path", path_item.to_string());
                 params.insert("parent", parent_id.to_string());
+                let now = Local::now();
+                params.insert("create_time", now.format("%Y-%m-%d %H:%M:%S").to_string());
                 params.insert("full_path", full_path.to_string());
                 path_info_rep.dao.insert(params).await?;
                 finally_id=current_id;
