@@ -1,6 +1,7 @@
 use actix_web::web::Data;
-use actix_web::{cookie::time::Duration, post, web, HttpRequest, Responder};
-use common::{build_id, result_data, result_error, AppError, AppState, BaseResponse};
+use actix_web::{HttpRequest, Responder, cookie::time::Duration, post, web};
+use common::{AppError, AppState, BaseResponse, build_id, result_data, result_error};
+use log::info;
 use model::UserRepository;
 use model::*;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,6 @@ use sqlx::FromRow;
 use utoipa::ToSchema;
 
 const ONE_MINUTE: Duration = Duration::minutes(60);
-
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.app_data(state.clone());
@@ -20,6 +20,11 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
 pub struct LoginInfo {
     pub username: String,
     pub password: String,
+}
+#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+pub struct LoginResult<'a> {
+    pub username: &'a str,
+    pub token: &'a str,
 }
 #[utoipa::path(
     post,
@@ -34,23 +39,16 @@ pub async fn login(
     state: web::Data<AppState>,
     user_rep: web::Data<UserRepository>,
 ) -> Result<impl Responder, AppError> {
-    let result = user_rep
-        .login(dto.username.to_string(), dto.password.to_string())
-        .await;
-    match result
-    {
-        Ok(info) => {
-            let session_id = build_id();
-            state.session_cache.insert(session_id, info.id.clone());
-            Ok(web::Json(result_data(info.clone())))
-        }
-        Err(e) => {
-           return Ok(web::Json(result_error(e)));
-        }
-    }
+    let result = user_rep.login(&dto.username, &dto.password).await?;
+    let session_id = &build_id();
+    state.session_cache.insert(session_id.clone(), result.id.clone()).await;
+    Ok(web::Json(result_data(LoginResult {
+        username: &result.user_name,
+        token: &session_id,
+    })))
 }
 #[post("/auth/logout")]
-async fn logout(state: web::Data<AppState>,req: HttpRequest) -> Result<impl Responder, AppError> {
+async fn logout(state: web::Data<AppState>, req: HttpRequest) -> Result<impl Responder, AppError> {
     let auth_header = req.headers().get("Authorization");
     if let Some(auth_value) = auth_header {
         if let Ok(auth_str) = auth_value.to_str() {

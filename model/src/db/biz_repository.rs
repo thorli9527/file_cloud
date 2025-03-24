@@ -1,8 +1,8 @@
 use crate::{
-    query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType,
-    UserBucket, UserBucketRight, UserInfo,
+    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType, UserBucket,
+    UserBucketRight, UserInfo, query_by_sql,
 };
-use common::{build_md5, AppError};
+use common::{AppError, build_md5};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, MySqlPool};
@@ -26,18 +26,14 @@ impl UserRepository {
         params.insert("user_name", user_name.to_string());
         return self.dao.find_by_one(params).await;
     }
-    pub async fn login(&self, user_name: String, password: String) -> Result<UserInfo, AppError> {
+    pub async fn login(&self, user_name: &String, password: &String) -> Result<UserInfo, AppError> {
         let mut params: HashMap<&str, String> = HashMap::new();
         params.insert("user_name", user_name.to_string());
-        let user_result = self.dao.find_by_one(params).await;
-        let user_info = match user_result {
-            Ok(info) => info,
-            Err(e) => return Err(AppError::NotErrorNoRight(e.to_string())),
-        };
-        if user_info.password != build_md5(&password) {
-            return Err(AppError::NotErrorNoRight("password.error".to_owned()));
+        let user_result = self.dao.query_by_params(params).await?;
+        if user_result.len() > 0 {
+            return Ok(user_result[0].clone());
         }
-        Ok(user_info)
+        Err(AppError::BizError("username or password error".to_string()))
     }
 }
 
@@ -88,7 +84,7 @@ impl FileRepository {
         let mut keys: Vec<&str> = params.keys().cloned().collect();
         let values: Vec<String> = params.values().cloned().collect();
         keys.push("items");
-        let  placeholders = vec!["?"; keys.len()].join(", ");
+        let placeholders = vec!["?"; keys.len()].join(", ");
         let query = format!(
             "INSERT INTO {} ({}) VALUES ({})",
             self.dao.table_name,

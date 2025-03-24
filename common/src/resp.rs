@@ -142,7 +142,6 @@ pub fn result_error_msg(msg: &str) -> Value {
 pub fn result_error(error: AppError) -> Value {
     let error_message=match error {
         AppError::NotFound(ref msg) => msg,
-        AppError::NotErrorNoRight(ref msg) => msg,
         AppError::DBError(sqlx::Error::Database(db_err))=> &db_err.to_string(),
         AppError::BizError(ref msg) => msg,
         AppError::InvalidInput(ref msg) => msg,

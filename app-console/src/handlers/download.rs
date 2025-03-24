@@ -50,7 +50,7 @@ async fn download(
         }
     }
     if !has_right {
-        return Err(AppError::NotErrorNoRight("no.right".to_owned()));
+        return Err(AppError::NoRight("no.right".to_owned()));
     }
 
     let item_files = file_info.items;
