@@ -1,6 +1,7 @@
 use actix_multipart::form::json;
 use actix_multipart::MultipartError;
 use actix_web::{http, HttpResponse, Responder, ResponseError};
+use actix_web::http::StatusCode;
 use futures_util::future::err;
 use log::{error, warn};
 use redis::RedisError;
@@ -36,9 +37,9 @@ pub enum AppError {
 /// 将错误序列化为 JSON 响应
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse<'a> {
-    code: u16,
+    status: u16,
     success:bool,
-    message: &'a str,
+    msg: &'a str,
     errors: String,
 }
 
@@ -92,13 +93,13 @@ impl ResponseError for AppError {
         };
 
         let err = ErrorResponse {
-            code: code.as_u16(),
-            message: error_type,
+            status: code.as_u16(),
+            msg: error_type,
             success,
             errors: error_msg,
         };
 
-        HttpResponse::build(self.status_code())
+        HttpResponse::build(code)
             .content_type("application/json")
             .json(err)
     }

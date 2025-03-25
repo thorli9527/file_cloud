@@ -139,17 +139,7 @@ pub fn result_error_msg(msg: &str) -> Value {
     serde_json::json!({"success":false,"msg":msg})
 }
 
-pub fn result_error(error: AppError) -> Value {
-    let error_message=match error {
-        AppError::NotFound(ref msg) => msg,
-        AppError::DBError(sqlx::Error::Database(db_err))=> &db_err.to_string(),
-        AppError::BizError(ref msg) => msg,
-        AppError::InvalidInput(ref msg) => msg,
-        AppError::MultipartError(ref msg) => &msg.to_string(),
-        _ => "999",
-    };
-    serde_json::json!({"success":false,"msg":error_message})
-}
+
 pub fn result_warn_msg(msg: &str) -> Value {
     serde_json::json!({"success":true,"msg":msg})
 }

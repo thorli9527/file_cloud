@@ -31,9 +31,12 @@ impl UserRepository {
         params.insert("user_name", user_name.to_string());
         let user_result = self.dao.query_by_params(params).await?;
         if user_result.len() > 0 {
-            return Ok(user_result[0].clone());
+            let info = &user_result[0];
+            if info.password == build_md5(password) {
+                return Ok(info.clone());
+            }
         }
-        Err(AppError::BizError("username or password error".to_string()))
+        Err(AppError::BizError("username.or.password.error".to_string()))
     }
 }
 

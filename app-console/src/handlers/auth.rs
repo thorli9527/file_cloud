@@ -1,6 +1,6 @@
 use actix_web::web::Data;
 use actix_web::{HttpRequest, Responder, cookie::time::Duration, post, web};
-use common::{AppError, AppState, BaseResponse, build_id, result_data, result_error};
+use common::{AppError, AppState, BaseResponse, build_id, result_data,};
 use log::info;
 use model::UserRepository;
 use model::*;
@@ -17,13 +17,15 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginInfo {
-    pub username: String,
+    pub user_name: String,
     pub password: String,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginResult<'a> {
-    pub username: &'a str,
+    pub user_name: &'a str,
     pub token: &'a str,
 }
 #[utoipa::path(
@@ -39,11 +41,11 @@ pub async fn login(
     state: web::Data<AppState>,
     user_rep: web::Data<UserRepository>,
 ) -> Result<impl Responder, AppError> {
-    let result = user_rep.login(&dto.username, &dto.password).await?;
+    let result = user_rep.login(&dto.user_name, &dto.password).await?;
     let session_id = &build_id();
     state.session_cache.insert(session_id.clone(), result.id.clone()).await;
     Ok(web::Json(result_data(LoginResult {
-        username: &result.user_name,
+        user_name: &result.user_name,
         token: &session_id,
     })))
 }

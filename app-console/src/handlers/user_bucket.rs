@@ -1,6 +1,6 @@
 use actix_web::web::Data;
 use actix_web::{post, web, Responder};
-use common::{result, result_error_msg, result_list, AppError, AppState};
+use common::{result, result_list, AppError, AppState};
 use model::{BucketInfoResult, Repository, RightType, UserBucketRepository};
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -48,10 +48,7 @@ async fn save(
     data: web::Json<UserBucketNew>,
     user_bucket_rep: Data<UserBucketRepository>,
 ) -> Result<impl Responder, AppError> {
-    if let Err(e) = &data.validate() {
-        let msg = format!("Validation failed: {:?}", e);
-        return Ok(web::Json(result_error_msg(msg.as_str())));
-    }
+     &data.validate();
     user_bucket_rep.change_right(data.user_id.clone(),data.bucket_id.clone(),  data.right_type.clone());
     return Ok(web::Json(result()));
 }

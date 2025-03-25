@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{post, web, Responder};
 use common::{
-    build_id, build_md5, result, result_error, result_error_msg, result_list, result_warn_msg,
+    build_id, build_md5, result, result_list, result_warn_msg,
     AppError, AppState,
 };
 use model::{Repository, UserInfo, UserRepository};
@@ -55,6 +55,7 @@ async fn user_delete(
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UserNewDto {
     pub user_name: Option<String>,
     pub password: Option<String>,
@@ -78,7 +79,7 @@ async fn user_new(
             params.insert("user_name", user_name.to_string());
         }
         None => {
-            return Ok(web::Json(result_error_msg("user_name.is.null")));
+            return Err(AppError::BizError("user_name.is.null".to_string()));
         }
     }
     match &user.password {
@@ -86,7 +87,7 @@ async fn user_new(
             params.insert("password", build_md5(password).to_string());
         }
         None => {
-            return Ok(web::Json(result_error_msg("password.is.null")));
+            return Err(AppError::BizError("password.is.null".to_string()));
         }
     }
     params.insert("access_key", build_id());
@@ -105,7 +106,7 @@ async fn user_new(
                 let message = format!("用户已存在{}", user_name);
                 return Ok(web::Json(result_warn_msg(message.as_str())));
             }
-            _ => return Ok(web::Json(result_error_msg("999"))),
+            error => return Err(error),
         },
     }
 }
@@ -134,7 +135,7 @@ async fn user_change_key(
             user_rep.dao.change(&info.id.to_string(),params).await?;
         },
         Err(e) => {
-            return Ok(web::Json(result_error(e)));
+           return Err(e);
         }
     }
 
@@ -162,21 +163,22 @@ async fn user_change_password(
        Ok(info) => {
            let old_password = match &user.old_password {
                Some(old_password) => old_password,
-               _ => return Ok(web::Json(result_error_msg("old_password.is.null"))),
+               _ => return Err(AppError::BizError("old_password.is.null".to_string())),
            };
            if build_md5(old_password)!= info.password {
-               return Ok(web::Json(result_error_msg("old_password.is.not.correct")));
+               return Err(AppError::BizError("old_password.is.not.correct".to_string()))
            }
            let new_password = match &user.new_password {
                Some(new_password) => build_md5(new_password),
-               _ => return Ok(web::Json(result_error_msg("new_password.is.null"))),
+               _ =>
+                   return Err(AppError::BizError("new_password.is.null".to_string()))
            };
            let mut params: HashMap<&str, String> = HashMap::new();
            params.insert("password", new_password);
            user_rep.dao.change(&info.id.to_string(),params).await?;
        },
        Err(e) => {
-           return Ok(web::Json(result_error(e)));
+           return Err(e);
        }
    }
 
