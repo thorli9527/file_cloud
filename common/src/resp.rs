@@ -1,5 +1,5 @@
 use crate::{AppError, Page};
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
+use actix_multipart::form::{MultipartForm, tempfile::TempFile};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
@@ -139,7 +139,6 @@ pub fn result_error_msg(msg: &str) -> Value {
     serde_json::json!({"success":false,"msg":msg})
 }
 
-
 pub fn result_warn_msg(msg: &str) -> Value {
     serde_json::json!({"success":true,"msg":msg})
 }
@@ -147,7 +146,7 @@ pub fn result_list<T: Serialize + Debug>(list: Vec<T>) -> Value {
     return serde_json::json!({"success":true,"data":list});
 }
 pub fn result_page<T: Serialize + Debug>(page: Page<T>) -> Value {
-    return serde_json::json!({"success":true,"data":page.data,"page":page.page_info});
+    return serde_json::json!({"success":true,"data":{"list":page.data,"total":page.total,"page":page.page_info}});
 }
 pub fn result_data<T: Serialize + Debug>(data: T) -> Value {
     return serde_json::json!({"success":true,"data":data});

@@ -260,7 +260,6 @@ where
             page_info: PageInfo{
                 index: page_info.index,
                 page_size: page_info.page_size,
-                total: count,
                 order_column: page_info.order_column.clone(),
                 order_type: page_info.order_type.clone(),
             },

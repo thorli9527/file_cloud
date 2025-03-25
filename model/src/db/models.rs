@@ -49,6 +49,7 @@ pub struct UserBucketRightQueryResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Bucket {
     pub id: String,
     pub name: String,
