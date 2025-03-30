@@ -19,7 +19,9 @@ use model::*;
 
         handlers::bucket::list,
         handlers::bucket::save,
-        handlers::bucket::delete,
+        handlers::bucket::bucket_delete,
+
+        handlers::file::file_list,
 
         handlers::user_bucket::user_bucket_list,
         handlers::user_bucket::user_bucket_delete

@@ -1,5 +1,5 @@
-use crate::{AppError, Page};
-use actix_multipart::form::{MultipartForm, tempfile::TempFile};
+use crate::Page;
+use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
@@ -135,6 +135,7 @@ impl<T: Serialize + Debug> ResponsePage<T> {
 pub fn result() -> Value {
     serde_json::json!({"success":true})
 }
+
 pub fn result_error_msg(msg: &str) -> Value {
     serde_json::json!({"success":false,"msg":msg})
 }

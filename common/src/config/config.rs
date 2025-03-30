@@ -1,3 +1,4 @@
+use crate::UserCache;
 use config::Config;
 use env_logger::Builder;
 use log::LevelFilter;
@@ -44,7 +45,7 @@ pub struct AppState {
     pub root_path: String,
     pub dir_create_cache: Arc<Cache<String, String>>,
     pub db_path_cache: Arc<Cache<String, String>>,
-    pub session_cache: Arc<Cache<String, String>>,
+    pub session_cache: Arc<Cache<String, UserCache>>,
 }
 
 impl AppState {

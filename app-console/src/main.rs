@@ -8,7 +8,7 @@ use actix_session::SessionMiddleware;
 use actix_session::config::PersistentSession;
 use actix_web::cookie::Key;
 use actix_web::middleware::Logger;
-use common::AppState;
+use common::{AppState, UserCache};
 use log::info;
 use moka::future::Cache;
 use std::sync::Arc;
@@ -34,7 +34,7 @@ async fn main() -> std::io::Result<()> {
             .build(),
     );
     //用户 session
-    let session_cache: Arc<Cache<String, String>> = Arc::new(
+    let session_cache: Arc<Cache<String, UserCache>> = Arc::new(
         Cache::builder()
             .time_to_live(Duration::from_secs(60 * 60 * 24)) // 设置 TTL 60 秒
             .max_capacity(1000) // 最大存储 1000 个键值

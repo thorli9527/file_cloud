@@ -1,12 +1,15 @@
 use crate::{
-    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, RightType, UserBucket,
+    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, UserBucket,
     UserBucketRight, UserInfo, query_by_sql,
 };
-use common::{AppError, build_md5};
+use common::{AppError, RightType, build_md5, result};
+use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, MySqlPool};
+use sqlx::{FromRow, MySqlPool, query};
 use std::collections::HashMap;
+use std::option::Option;
 use std::{str, sync::Arc};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -49,6 +52,24 @@ impl PathRepository {
         Self {
             dao: BaseRepository::new(pool, "path_info"),
         }
+    }
+
+    pub async fn find_file_size(&self, full_path: &str) -> Result<i64, AppError> {
+        let query = format!(
+            r#"
+           SELECT
+                sum(file_info.size)
+            FROM
+                file_info
+            WHERE
+                file_info.full_path LIKE '{}%'
+                "#,
+            full_path
+        );
+        let mut sql_query = sqlx::query_scalar::<_, Decimal>(&query);
+
+        let result = sql_query.fetch_one(&*self.dao.pool).await?;
+        Ok(result.to_i64().unwrap())
     }
 }
 
@@ -110,7 +131,7 @@ pub struct UserBucketRepository {
 }
 #[derive(Debug, Serialize, Deserialize, FromRow, Validate, ToSchema, Clone)]
 pub struct BucketInfoResult {
-    pub bucket_id: String,
+    pub bucket_id: i64,
     pub name: String,
     pub right: RightType,
 }
@@ -142,7 +163,7 @@ impl UserBucketRepository {
                 }
                 .to_string(),
             );
-            self.dao.change(&list[0].id, params).await?;
+            self.dao.change(list[0].id, params).await?;
             return Ok(());
         } else {
             params.insert(
@@ -159,11 +180,8 @@ impl UserBucketRepository {
         Ok(())
     }
 
-    pub async fn query_by_user_id(
-        &self,
-        user_id: &String,
-    ) -> Result<Vec<BucketInfoResult>, AppError> {
-        if user_id.is_empty() {
+    pub async fn query_by_user_id(&self, user_id: i64) -> Result<Vec<BucketInfoResult>, AppError> {
+        if user_id == 0 {
             return Err(AppError::BizError("user_id.is_empty".to_owned()));
         }
         let mut params: HashMap<&str, String> = HashMap::new();

@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, Responder};
-use common::{AppError, AppState};
-use model::{BucketRepository, FileInfo, FileRepository, Repository, RightType, UserBucketRepository};
+use common::{AppError, AppState, RightType};
+use model::{BucketRepository, FileInfo, FileRepository, Repository, UserBucketRepository};
 use std::fs::File;
 use std::io::Read;
 
@@ -19,23 +19,23 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>) {
 )]
 #[get("/download/{file_id}/{userId}")]
 async fn download(
-    params: web::Path<(String, String)>,
+    params: web::Path<(i64, i64)>,
     user_bucket_rep: web::Data<UserBucketRepository>,
     bucket_rep: web::Data<BucketRepository>,
     file_rep: web::Data<FileRepository>,
 ) -> Result<impl Responder, AppError> {
     let (file_id,user_id) = &*params;
-    let file_info:FileInfo = match file_rep.dao.find_by_id(file_id).await {
+    let file_info:FileInfo = match file_rep.dao.find_by_id(*file_id).await {
         Ok(file) => file,
         Err(e) => return Err(AppError::NotFound("file.not.found".to_owned())),
     };
     let mut has_right = false;
-    let bucket_info = bucket_rep.dao.find_by_id(&file_info.bucket_id).await?;
+    let bucket_info = bucket_rep.dao.find_by_id(file_info.bucket_id).await?;
     if bucket_info.pub_read {
         has_right = true;
     }
     if !has_right {
-        let user_bucket_list_right = user_bucket_rep.query_by_user_id(user_id).await?;
+        let user_bucket_list_right = user_bucket_rep.query_by_user_id(*user_id).await?;
         for user_bucket_tmp in &user_bucket_list_right {
             if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
                 match &user_bucket_tmp.right {
@@ -62,7 +62,7 @@ async fn download(
     Ok(HttpResponse::Ok()
         .append_header((
             "Content-Disposition",
-            format!("attachment; filename=\"{}\"", file_info.file_name),
+            format!("attachment; filename=\"{}\"", file_info.full_path),
         ))
         .body(buffer))
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::{AppError, Page, PageInfo};
+use common::{AppError, OrderType, Page, PageInfo};
 use sqlx::mysql::{MySqlArguments, MySqlRow};
 use sqlx::MySqlPool;
 use sqlx::{Arguments, FromRow};
@@ -24,9 +24,9 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
     //query all
     async fn get_all(&self) -> Result<Vec<T>, AppError>;
     //find by id
-    async fn find_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<T, AppError>;
+    async fn find_by_id(&self, id: i64) -> Result<T, AppError>;
     //delete by id
-    async fn del_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<u64, AppError>;
+    async fn del_by_id(&self, id: i64) -> Result<u64, AppError>;
     //query by params
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
     //query count
@@ -37,12 +37,19 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
         params: HashMap<&str, String>,
         page_info: &PageInfo,
     ) -> Result<Page<T>, AppError>;
+    async fn query_by_max_id(
+        &self,
+        id: i64,
+        params: HashMap<&str, String>,
+        order_type: OrderType,
+        page_size:&i16
+    ) -> Result<Vec<T>, AppError>;
     //query one
     async fn find_by_one(&self, params: HashMap<&str, String>) -> Result<T, AppError>;
     //insert
     async fn insert(&self, params: HashMap<&str, String>) -> Result<u64, AppError>;
     //change data by id
-    async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError>;
+    async fn change(&self, id: i64, params: HashMap<&str, String>) -> Result<(), AppError>;
 }
 
 /// 泛型 BaseRepository，支持所有表
@@ -77,18 +84,20 @@ where
         return Ok(vec);
     }
 
-    async fn find_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<T, AppError> {
+
+
+    async fn find_by_id(&self, id: i64) -> Result<T, AppError> {
         let query = format!("SELECT * FROM {} WHERE id = ?", self.table_name);
         let option = sqlx::query_as::<_, T>(&query)
-            .bind(id.as_ref())
+            .bind(id)
             .fetch_one(&*self.pool)
             .await?;
         return Ok(option);
     }
 
-    async fn del_by_id(&self, id: impl AsRef<str>+ std::marker::Send) -> Result<u64, AppError> {
+    async fn del_by_id(&self, id: i64) -> Result<u64, AppError> {
         let query = format!("DELETE FROM {} WHERE id = ?", self.table_name);
-        let result = sqlx::query(&query).bind(id.as_ref()).execute(&*self.pool).await?;
+        let result = sqlx::query(&query).bind(id).execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }
 
@@ -165,7 +174,7 @@ where
         let result = sql_query.execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }
-    async fn change(&self, id: &String, params: HashMap<&str, String>) -> Result<(), AppError> {
+    async fn change(&self, id: i64, params: HashMap<&str, String>) -> Result<(), AppError> {
         let mut query = String::from("UPDATE ");
         query.push_str(&*self.table_name);
         query.push_str(" SET ");
@@ -210,7 +219,36 @@ where
         let result = sql_query.fetch_one(&*self.pool).await?;
         Ok(result)
     }
+    async fn query_by_max_id(&self,id:i64, params: HashMap<&str, String>, order_type: OrderType,
+                             page_size:&i16) -> Result<Vec<T>, AppError> {
+        let mut query = format!("SELECT * FROM {} WHERE ", self.table_name);
+        let mut values = vec![];
 
+        for (key, value) in &params {
+            query.push_str(&format!("{} = ? AND ", key));
+            values.push(value.clone());
+        }
+        if &params.len()> &0 {
+            // 移除最后的 "AND "
+            query.truncate(query.len() - 4);
+        }
+        else{
+            query.truncate(query.len() - 7);
+        }
+
+        let order_type=match order_type {
+            (order_type) => order_type.as_ref().to_string(),
+            _ => "ASC".to_string(),
+        };
+        let order_str = &format!(" ORDER BY id {} LIMIT {} ", order_type, page_size);
+        query.push_str(order_str);
+        let mut sql_query = sqlx::query_as::<_, T>(&query);
+        for value in values {
+            sql_query = sql_query.bind(value);
+        }
+        let vec1 = sql_query.fetch_all(&*self.pool).await?;
+        return Ok(vec1);
+    }
     async fn query_by_page(
         &self,
         params: HashMap<&str, String>,
@@ -265,4 +303,6 @@ where
             },
         })
     }
+
+
 }

@@ -15,3 +15,4 @@ sqlx = { workspace = true }
 async-trait = "0.1.88"
 chrono.workspace = true
 validator.workspace = true
+rust_decimal.workspace = true

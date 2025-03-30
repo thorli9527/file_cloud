@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{post, web, Responder};
-use common::{result, result_list, AppError, AppState};
-use model::{BucketInfoResult, Repository, RightType, UserBucketRepository};
+use common::{result, result_list, AppError, AppState, RightType};
+use model::{BucketInfoResult, Repository, UserBucketRepository};
 use serde::Deserialize;
 use utoipa::ToSchema;
 use validator::Validate;
@@ -65,11 +65,10 @@ async fn save(
 )]
 #[post("/user/bucket/delete/{id}")]
 async fn user_bucket_delete(
-    id: web::Path<String>,
+    id: web::Path<i64>,
     user_reg: Data<UserBucketRepository>,
 ) -> Result<impl Responder, AppError> {
-    let id_p = format!("{}", id);
-    user_reg.dao.del_by_id(id_p).await?;
+    user_reg.dao.del_by_id(*id).await?;
     Ok(web::Json(result()))
 }
 

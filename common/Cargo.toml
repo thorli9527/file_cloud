@@ -37,3 +37,6 @@ sqlx = { workspace = true }
 md-5.workspace = true
 hex-literal = "1.0.0"
 validator.workspace = true
+snowflake.workspace = true
+rustflake = "0.1.1"
+

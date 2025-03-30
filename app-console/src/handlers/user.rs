@@ -1,9 +1,7 @@
 use actix_web::web::Data;
-use actix_web::{Responder, post, web};
-use common::{
-    AppError, AppState, PageInfo, build_id, build_md5, result, result_list, result_page,
-    result_warn_msg,
-};
+use actix_web::{post, web, Responder};
+use chrono::Local;
+use common::{build_id, build_md5, build_snow_id, result, result_data, result_page, result_warn_msg, AppError, AppState, PageInfo};
 use model::{Repository, UserInfo, UserRepository};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -16,13 +14,15 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(user_delete);
     cfg.service(user_new);
     cfg.service(user_change_key);
+    cfg.service(user_view_key);
     cfg.service(user_change_password);
+    cfg.service(user_up_password);
 }
 #[utoipa::path(
     post,
     path = "/user/list",
     params(
-       // ("hash" = String, description = "The hash of the transaction to query")
+        // ("hash" = String, description = "The hash of the transaction to query")
     ),
     responses(
         (status = 200, description = "successfully",body = UserInfo)
@@ -50,11 +50,10 @@ async fn user_list(
 )]
 #[post("/user/delete/{id}")]
 async fn user_delete(
-    id: web::Path<String>,
+    id: web::Path<i64>,
     user_reg: Data<UserRepository>,
 ) -> Result<impl Responder, AppError> {
-    let id_p = format!("{}", id);
-    user_reg.dao.del_by_id(id_p).await?;
+    user_reg.dao.del_by_id(*id).await?;
     Ok(web::Json(result()))
 }
 
@@ -67,12 +66,12 @@ pub struct UserNewDto {
 
 #[utoipa::path(
     post,
-    path = "/user/new",
+    path = "/user/save",
     responses(
         (status = 200, description = "successfully",body = String)
     )
 )]
-#[post("/user/new")]
+#[post("/user/save")]
 async fn user_new(
     user_rep: Data<UserRepository>,
     user: web::Json<UserNewDto>,
@@ -96,7 +95,10 @@ async fn user_new(
     }
     params.insert("access_key", build_id());
     params.insert("secret_key", build_id());
-    params.insert("id", build_id());
+    params.insert("is_admin", "1".to_owned());
+    let now = Local::now();
+    params.insert("create_time", now.format("%Y-%m-%d %H:%M:%S").to_string());
+    params.insert("id", build_snow_id().to_string());
     match user_rep.dao.insert(params).await {
         Ok(_) => {
             return Ok(web::Json(result()));
@@ -121,22 +123,22 @@ pub struct UserChangeKey {
 }
 #[utoipa::path(
     post,
-    path = "/user/change/key",
+    path = "/user/change/key/{user_name}",
     responses(
         (status = 200, description = "successfully",body = String)
     )
 )]
-#[post("/user/change/key")]
+#[post("/user/change/key/{user_name}")]
 async fn user_change_key(
     user_rep: web::Data<UserRepository>,
-    user: web::Json<UserChangeKey>,
+    user_name: web::Path<String>,
 ) -> Result<impl Responder, AppError> {
-    match user_rep.find_by_name((&*user.user_name).to_string()).await {
+    match user_rep.find_by_name((&*user_name).to_string()).await {
         Ok(info) => {
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("access_key", build_id());
             params.insert("secret_key", build_id());
-            user_rep.dao.change(&info.id.to_string(), params).await?;
+            user_rep.dao.change(info.id, params).await?;
         }
         Err(e) => {
             return Err(e);
@@ -146,6 +148,7 @@ async fn user_change_key(
     Ok(web::Json(result()))
 }
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UserChangePass {
     pub user_name: String,
     pub old_password: Option<String>,
@@ -180,7 +183,7 @@ async fn user_change_password(
             };
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("password", new_password);
-            user_rep.dao.change(&info.id.to_string(), params).await?;
+            user_rep.dao.change(info.id, params).await?;
         }
         Err(e) => {
             return Err(e);
@@ -190,9 +193,10 @@ async fn user_change_password(
     Ok(web::Json(result()))
 }
 #[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UserUpPass {
     pub user_name: String,
-    pub new_password: Option<String>,
+    pub password: Option<String>,
 }
 
 #[post("/user/up/password")]
@@ -202,13 +206,13 @@ async fn user_up_password(
 ) -> Result<impl Responder, AppError> {
     match user_rep.find_by_name(user.user_name.to_string()).await {
         Ok(info) => {
-            let new_password = match &user.new_password {
+            let new_password = match &user.password {
                 Some(new_password) => build_md5(new_password),
                 _ => return Err(AppError::BizError("new_password.is.null".to_string())),
             };
             let mut params: HashMap<&str, String> = HashMap::new();
             params.insert("password", new_password);
-            user_rep.dao.change(&info.id.to_string(), params).await?;
+            user_rep.dao.change(info.id, params).await?;
         }
         Err(e) => {
             return Err(e);
@@ -216,4 +220,21 @@ async fn user_up_password(
     }
 
     Ok(web::Json(result()))
+}
+
+#[utoipa::path(
+    post,
+    path = "/user/view/{user_name}",
+    responses(
+        (status = 200, description = "successfully",body = String)
+    )
+)]
+#[post("/user/view/{user_name}")]
+async fn user_view_key(
+    user_rep: web::Data<UserRepository>,
+    user_name: web::Path<String>,
+) -> Result<impl Responder, AppError> {
+    let user_info = user_rep.find_by_name(user_name.clone()).await?;
+    let result = serde_json::json!({ "accessKey": user_info.access_key,"secretKey": user_info.secret_key});
+    return Ok(web::Json(result_data(result)));
 }
