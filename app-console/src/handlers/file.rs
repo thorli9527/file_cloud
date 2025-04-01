@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{HttpRequest, Responder, post, web};
 use chrono::NaiveDateTime;
-use common::{AppError, AppState, OrderType, result_data};
+use common::{AppError, AppState, OrderType, result_data, result_list};
 use model::date_format::date_format;
 use model::{
     FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository,
@@ -9,20 +9,20 @@ use model::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utoipa::ToSchema;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(file_list);
+    cfg.service(file_path_info);
 }
 
-#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 enum QueryDataType {
     FILE,
     DIR,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PathQuery {
     path_id: i64,
@@ -31,28 +31,24 @@ struct PathQuery {
     query_type: QueryDataType,
     max_id: i64,
 }
-#[derive(Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileResult {
     id: i64,
     file_name: String,
     file_type: FileType,
+    bucket_id:i64,
     size: u32,
     image_type: ImageType,
     #[serde(with = "date_format")]
     pub create_time: NaiveDateTime,
 }
+#[post("/file/path/{id}")]
+async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,)-> Result<impl Responder, AppError> {
+    let result = path_rep.dao.find_by_id(*path_id).await?;
+    Ok(web::Json(result_data(result)))
+}
 
-#[utoipa::path(
-    post,
-    path = "/file/list",
-    params(
-        // ("hash" = String, description = "The hash of the transaction to query")
-    ),
-    responses(
-        (status = 200, description = "successfully",body = FileResult)
-    )
-)]
 #[post("/file/list")]
 async fn file_list(
     req: HttpRequest,
@@ -80,9 +76,10 @@ async fn file_list(
             .await?;
         for item in path_list {
             let path_file_name=format!("{}{}",&item.full_path,"/");
-            let x = path_rep.find_file_size(&path_file_name).await?;
+            let x = file_rep.path_size(&path_file_name).await?;
             let file = FileResult {
                 id: item.id,
+                bucket_id:item.bucket_id,
                 file_name: item.path,
                 file_type: FileType::DIR,
                 size: x.clone() as u32,
@@ -108,6 +105,7 @@ async fn file_list(
         for item in file_list {
             let file = FileResult {
                 id: item.id,
+                bucket_id:item.bucket_id,
                 file_name: item.name,
                 file_type: item.file_type,
                 size: item.size,

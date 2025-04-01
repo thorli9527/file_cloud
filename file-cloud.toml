@@ -5,7 +5,7 @@ host = "127.0.0.1"
 port = 8080
 root_path = "./upload"
 [logs]
-global = "trace"
+global = "warn"
 trace = ""
 debug = ""
 error = ""

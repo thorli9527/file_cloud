@@ -11,7 +11,6 @@ use sqlx::{FromRow, MySqlPool, query};
 use std::collections::HashMap;
 use std::option::Option;
 use std::{str, sync::Arc};
-use utoipa::ToSchema;
 use validator::Validate;
 
 pub struct UserRepository {
@@ -54,23 +53,6 @@ impl PathRepository {
         }
     }
 
-    pub async fn find_file_size(&self, full_path: &str) -> Result<i64, AppError> {
-        let query = format!(
-            r#"
-           SELECT
-                sum(file_info.size)
-            FROM
-                file_info
-            WHERE
-                file_info.full_path LIKE '{}%'
-                "#,
-            full_path
-        );
-        let mut sql_query = sqlx::query_scalar::<_, Decimal>(&query);
-
-        let result = sql_query.fetch_one(&*self.dao.pool).await?;
-        Ok(result.to_i64().unwrap())
-    }
 }
 
 pub struct BucketRepository {
@@ -124,12 +106,45 @@ impl FileRepository {
         sql_query.execute(&*self.dao.pool.clone()).await?;
         Ok(())
     }
+
+
+    pub async fn path_size(&self, full_path: &str) -> Result<i64, AppError> {
+        let query = format!(
+            r#"
+           SELECT
+                sum(file_info.size)
+            FROM
+                file_info
+            WHERE
+                file_info.full_path LIKE '{}%'
+                "#,
+            full_path
+        );
+        let mut sql_query = sqlx::query_scalar::<_, Decimal>(&query);
+
+        let result = sql_query.fetch_one(&*self.dao.pool).await?;
+        Ok(result.to_i64().unwrap())
+    }
+
+
+    pub async fn path_file_list(&self, full_path: &str,max_id:i64,bucket_id:i64) -> Result<Vec<FileInfo>, AppError> {
+        let query = format!(
+            r#"
+            SELECT * from {} where bucket_id ={} and full_path LIKE '{}/%' and id>{} order by id asc
+                "#,
+            self.dao.table_name,bucket_id,full_path,max_id
+        );
+        let list_result = sqlx::query_as::<_, FileInfo>(&query)
+            .fetch_all(&*self.dao.pool)
+            .await?;
+        return Ok(list_result);
+    }
 }
 
 pub struct UserBucketRepository {
     pub dao: BaseRepository<UserBucket>,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Validate, ToSchema, Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Validate, Clone)]
 pub struct BucketInfoResult {
     pub bucket_id: i64,
     pub name: String,

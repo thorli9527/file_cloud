@@ -6,12 +6,11 @@ use sqlx::{FromRow, MySqlPool, Type};
 use std::path::Path;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, EnumString};
-use utoipa::ToSchema;
 use common::RightType;
 //查询分页对像
 
 
-#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfo {
     pub id: i64,
@@ -47,7 +46,7 @@ pub struct UserBucketRightQueryResult {
     pub right: RightType,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Bucket {
     pub id: i64,
@@ -60,7 +59,7 @@ pub struct Bucket {
     pub create_time: NaiveDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum FileType {
@@ -100,7 +99,7 @@ impl FileType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, AsRefStr)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum ImageType {

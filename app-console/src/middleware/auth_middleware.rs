@@ -85,8 +85,8 @@ where
                 let auth_header = req.headers().get("Authorization");
                 if let Some(auth_value) = auth_header {
                     if let Ok(auth_str) = auth_value.to_str() {
-                        if auth_str.starts_with("Session ") {
-                            let token_key = &auth_str[8..];
+                        if auth_str.starts_with("Bearer ") {
+                            let token_key = &auth_str[9..];
                             let token_option = state.session_cache.get(token_key).await;
                             if let Some(token_value) = token_option {
                                 state.session_cache.get_with(token_key.to_string(), async { return token_value; }).await;

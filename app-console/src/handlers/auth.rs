@@ -7,7 +7,6 @@ use model::UserRepository;
 use model::*;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use utoipa::ToSchema;
 
 const ONE_MINUTE: Duration = Duration::minutes(60);
 
@@ -17,25 +16,18 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(logout);
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInfo {
     pub user_name: String,
     pub password: String,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResult<'a> {
     pub user_name: &'a str,
     pub token: &'a str,
 }
-#[utoipa::path(
-    post,
-    path = "/auth/login",
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
 #[post("/auth/login")]
 pub async fn login(
     dto: web::Json<LoginInfo>,

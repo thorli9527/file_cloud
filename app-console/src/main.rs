@@ -1,9 +1,7 @@
 mod handlers;
-mod swagger;
 
 use actix_web::{App, HttpServer, cookie, web};
 // use app_api::ApiDoc;
-use crate::swagger::ApiDoc;
 use actix_session::SessionMiddleware;
 use actix_session::config::PersistentSession;
 use actix_web::cookie::Key;
@@ -13,8 +11,6 @@ use log::info;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 use app_console::AuthMiddleware;
 use model::db;
@@ -58,11 +54,10 @@ async fn main() -> std::io::Result<()> {
     info!("Starting server on {}", address_and_port);
     let data = web::Data::new(app_status.clone());
     let pool = Arc::new(db::get_conn(&config.database.url).await);
-    let api_doc = ApiDoc::openapi();
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .wrap(AuthMiddleware { state: data.clone() })
+            // .wrap(AuthMiddleware { state: data.clone() })
             //配置 orm
             .configure(|cfg| {
                 model::db::configure(cfg,pool.clone())
@@ -71,9 +66,6 @@ async fn main() -> std::io::Result<()> {
             .configure(|cfg| {
                 handlers::configure(cfg, data.clone());
             })
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", api_doc.clone()),
-            )
     })
     .keep_alive(actix_web::http::KeepAlive::Timeout(
         std::time::Duration::from_secs(600),

@@ -5,13 +5,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(status);
 }
 
-#[utoipa::path(
-    post,
-    path = "/status",
-    responses(
-        (status = 200, description = "successfully")
-    )
-)]
 #[post("/status")]
 pub async fn status() -> Result<impl Responder, AppError> {
     let s = String::from("OK");

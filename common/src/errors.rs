@@ -30,6 +30,7 @@ pub enum AppError {
     MultipartError(#[from] MultipartError),
     #[error("io Error: {0}")]
     IoError(#[from] std::io::Error),
+    // ZipError(#[from] std::io::Error),
     #[error("validator error: {0}")]
     ValidateError(#[from] validator::ValidationError),
 }

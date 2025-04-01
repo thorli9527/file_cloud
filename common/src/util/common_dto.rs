@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use strum_macros::{AsRefStr, EnumString};
-use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default,PartialEq, Eq, Type, EnumString, AsRefStr,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default,PartialEq, Eq, Type, EnumString, AsRefStr)]
 pub enum OrderType {
     #[default]
     ASC,
     DESC,
 }
-#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone,Default)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone,Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserCache {
     pub id: i64,
@@ -20,7 +19,7 @@ pub struct UserCache {
 impl UserCache{
 
 }
-#[derive(Debug, Serialize, Deserialize, FromRow,ToSchema,Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BucketCache {
     pub bucket_id: i64,
@@ -28,7 +27,7 @@ pub struct BucketCache {
     pub right: RightType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, EnumString)]
 #[sqlx(type_name = "ENUM")] // **告诉 `sqlx` 这是 `ENUM` 类型**
 #[sqlx(rename_all = "lowercase")]
 pub enum RightType {
@@ -36,19 +35,16 @@ pub enum RightType {
     Write,
     ReadWrite
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema,Clone,IntoParams)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PageInfo {
-    #[param(default = 0)]
     pub index: i64,
-    #[param(default = 10)]
     pub page_size: i64,
-    #[param(default = "id")]
     pub order_column:String,
     pub order_type:OrderType,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema,Clone)]
+#[derive(Debug, Serialize, Deserialize,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Page<T>
 {

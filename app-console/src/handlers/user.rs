@@ -6,7 +6,6 @@ use model::{Repository, UserInfo, UserRepository};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashMap;
-use utoipa::ToSchema;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.app_data(state.clone());
@@ -18,16 +17,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(user_change_password);
     cfg.service(user_up_password);
 }
-#[utoipa::path(
-    post,
-    path = "/user/list",
-    params(
-        // ("hash" = String, description = "The hash of the transaction to query")
-    ),
-    responses(
-        (status = 200, description = "successfully",body = UserInfo)
-    )
-)]
+
 #[post("/user/list")]
 async fn user_list(
     page: web::Json<PageInfo>,
@@ -38,16 +28,7 @@ async fn user_list(
     Ok(web::Json(result_page(page_result)))
 }
 
-#[utoipa::path(
-    post,
-    path = "/user/delete/{id}",
-    params(
-        // ("hash" = String, description = "The hash of the transaction to query")
-    ),
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/user/delete/{id}")]
 async fn user_delete(
     id: web::Path<i64>,
@@ -57,20 +38,14 @@ async fn user_delete(
     Ok(web::Json(result()))
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserNewDto {
     pub user_name: Option<String>,
     pub password: Option<String>,
 }
 
-#[utoipa::path(
-    post,
-    path = "/user/save",
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/user/save")]
 async fn user_new(
     user_rep: Data<UserRepository>,
@@ -117,17 +92,11 @@ async fn user_new(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 pub struct UserChangeKey {
     pub user_name: String,
 }
-#[utoipa::path(
-    post,
-    path = "/user/change/key/{user_name}",
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/user/change/key/{user_name}")]
 async fn user_change_key(
     user_rep: web::Data<UserRepository>,
@@ -147,20 +116,14 @@ async fn user_change_key(
 
     Ok(web::Json(result()))
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserChangePass {
     pub user_name: String,
     pub old_password: Option<String>,
     pub new_password: Option<String>,
 }
-#[utoipa::path(
-    post,
-    path = "/user/change/password",
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/user/change/password")]
 async fn user_change_password(
     user_rep: web::Data<UserRepository>,
@@ -192,7 +155,7 @@ async fn user_change_password(
 
     Ok(web::Json(result()))
 }
-#[derive(Debug, Serialize, Deserialize, FromRow, Default, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserUpPass {
     pub user_name: String,
@@ -222,13 +185,7 @@ async fn user_up_password(
     Ok(web::Json(result()))
 }
 
-#[utoipa::path(
-    post,
-    path = "/user/view/{user_name}",
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/user/view/{user_name}")]
 async fn user_view_key(
     user_rep: web::Data<UserRepository>,

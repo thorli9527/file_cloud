@@ -6,7 +6,6 @@ use model::*;
 use model::{BucketRepository, Repository};
 use serde::Deserialize;
 use std::collections::HashMap;
-use utoipa::ToSchema;
 use validator::Validate;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
@@ -15,16 +14,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(bucket_delete);
     cfg.service(save);
 }
-#[utoipa::path(
-    post,
-    path = "/bucket/list",
-    params(
-        // ("hash" = String, description = "The hash of the transaction to query")
-    ),
-    responses(
-        (status = 200, description = "successfully",body =Bucket)
-    )
-)]
 #[post("/bucket/list")]
 async fn list(
     page: web::Json<PageInfo>,
@@ -35,16 +24,7 @@ async fn list(
     Ok(web::Json(result_page(page_result)))
 }
 
-#[utoipa::path(
-    post,
-    path = "/bucket/delete/{id}",
-    params(
-        // ("hash" = String, description = "The hash of the transaction to query")
-    ),
-    responses(
-        (status = 200, description = "successfully",body = String)
-    )
-)]
+
 #[post("/bucket/delete/{id}")]
 async fn bucket_delete(
     id: web::Path<String>,
@@ -55,7 +35,7 @@ async fn bucket_delete(
     Ok(web::Json(result()))
 }
 
-#[derive(Debug, Deserialize, ToSchema, Validate)]
+#[derive(Debug, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 struct BucketSaveDto {
     id: i64,
@@ -65,13 +45,6 @@ struct BucketSaveDto {
     pub_read: bool,
     pub_write: bool,
 }
-#[utoipa::path(
-    post,
-    path = "/bucket/save",
-    responses(
-        (status = 200, description = "successfully",body = Bucket)
-    )
-)]
 #[post("/bucket/save")]
 async fn save(
     bucket_rep: Data<BucketRepository>,

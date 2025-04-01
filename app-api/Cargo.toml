@@ -14,8 +14,6 @@ serde = {workspace = true}
 serde_json ={workspace = true}
 tokio ={workspace = true}
 toml = {workspace = true}
-utoipa-swagger-ui = {workspace = true}
-utoipa = {workspace = true}
 log = {workspace = true}
 thiserror = {workspace = true}
 redis = {workspace = true}

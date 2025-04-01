@@ -11,8 +11,6 @@ serde =  { workspace = true }
 serde_json =  { workspace = true }
 tokio =  { workspace = true }
 toml =  { workspace = true }
-utoipa-swagger-ui =  { workspace = true }
-utoipa = { workspace = true }
 log =  { workspace = true }
 thiserror =  { workspace = true }
 redis =  { workspace = true }
@@ -38,5 +36,9 @@ md-5.workspace = true
 hex-literal = "1.0.0"
 validator.workspace = true
 snowflake.workspace = true
-rustflake = "0.1.1"
-
+rustflake.workspace = true
+walkdir.workspace = true
+zip.workspace = true
+anyhow.workspace = true
+tempfile.workspace = true
+clap.workspace = true

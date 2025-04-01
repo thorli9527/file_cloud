@@ -87,9 +87,8 @@ where
 
 
     async fn find_by_id(&self, id: i64) -> Result<T, AppError> {
-        let query = format!("SELECT * FROM {} WHERE id = ?", self.table_name);
+        let query = format!("SELECT * FROM {} WHERE id = {}", self.table_name,id);
         let option = sqlx::query_as::<_, T>(&query)
-            .bind(id)
             .fetch_one(&*self.pool)
             .await?;
         return Ok(option);
