@@ -33,7 +33,6 @@ async fn download_path(
     state: web::Data<AppState>,
     params: web::Path<(i64, i64)>,
     user_bucket_rep: web::Data<UserBucketRepository>,
-    bucket_rep: web::Data<BucketRepository>,
     path_rep: web::Data<PathRepository>,
     file_rep: web::Data<FileRepository>,
 ) -> Result<impl Responder, AppError> {
@@ -72,7 +71,6 @@ async fn download_path(
 
     // 创建临时目录
     let temp_dir = tempdir().map_err(|e| AppError::InternalError(e.to_string()))?;
-    warn!("source路径: {}", temp_dir.path().display());
     let mut max_id = 0 as i64;
     let mut file_list: Vec<FileInfo> = Vec::new();
     let mut create_dir_map: HashMap<&String, bool> = HashMap::new();
@@ -102,12 +100,10 @@ async fn download_path(
     }
     let mut out_file = tempdir().map_err(|e| AppError::InternalError(e.to_string()))?;
     let download_file = out_file.path().join("default.zip");
-    warn!("output dir: {}", out_file.path().display());
     do_zip(temp_dir.path().as_ref(), download_file.as_path(), zip::CompressionMethod::Deflated).map_err(|e| AppError::InternalError(e.to_string()));
 
     let file = File::open(download_file).await?;
     let stream = ReaderStream::new(file);
-
     Ok(HttpResponse::Ok()
         .append_header((header::CONTENT_TYPE, "application/zip"))
         .append_header((header::CONTENT_DISPOSITION, "attachment; filename=\"default.zip\""))

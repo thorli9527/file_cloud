@@ -51,8 +51,6 @@ async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,
 
 #[post("/file/list")]
 async fn file_list(
-    req: HttpRequest,
-    state: web::Data<AppState>,
     query: web::Json<PathQuery>,
     user_reg: Data<UserRepository>,
     file_rep: Data<FileRepository>,
