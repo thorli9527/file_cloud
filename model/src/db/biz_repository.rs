@@ -1,15 +1,14 @@
 use crate::{
-    BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository, UserBucket,
-    UserBucketRight, UserInfo, query_by_sql,
+    query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository,
+    UserBucket, UserBucketRight, UserInfo,
 };
-use common::{AppError, RightType, build_md5, result};
-use rust_decimal::Decimal;
+use common::{build_md5, AppError, RightType};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, MySqlPool, query};
+use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
-use std::option::Option;
 use std::{str, sync::Arc};
 use validator::Validate;
 

@@ -1,6 +1,6 @@
 mod handlers;
 
-use actix_web::{App, HttpServer, web};
+use actix_web::{web, App, HttpServer};
 // use app_api::ApiDoc;
 use common::AppState;
 use log::info;

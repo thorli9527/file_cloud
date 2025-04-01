@@ -5,11 +5,10 @@ use actix_web::{
     HttpMessage,
     HttpResponse,
 };
-use common::{result_error_msg, AppError, AppState};
+use common::{result_error_msg, AppState};
 use futures_util::future::{ok, LocalBoxFuture, Ready};
-use std::task::{Context, Poll};
 use std::rc::Rc;
-use common::AppError::BizError;
+use std::task::{Context, Poll};
 //
 
 /// Authentication Middleware

@@ -2,7 +2,7 @@ use actix_web::web::Data;
 use actix_web::{post, web, Responder};
 use chrono::Local;
 use common::{build_id, build_md5, build_snow_id, result, result_data, result_page, result_warn_msg, AppError, AppState, PageInfo};
-use model::{Repository, UserInfo, UserRepository};
+use model::{Repository, UserRepository};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashMap;

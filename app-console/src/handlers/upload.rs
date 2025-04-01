@@ -1,13 +1,12 @@
 use actix_multipart::Multipart;
-use actix_web::{Responder, post, web};
+use actix_web::{post, web, Responder};
 use chrono::{Datelike, Local, Timelike};
 use common::{
-    AppError, AppState, RightType, build_id, build_snow_id, result_data, result_error_msg,
+    build_id, build_snow_id, result_data, result_error_msg, AppError, AppState, RightType,
 };
 use futures_util::StreamExt;
 use model::*;
 use moka::future::Cache;
-use sanitize_filename::sanitize;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::fs::File;
@@ -145,29 +144,12 @@ pub async fn upload_file(
     if path.is_empty() || path == "/" || path == "" {
         path = String::from("");
     } else {
-        path_id = check_and_save_path(
-            bucket_id,
-            &path.clone(),
-            &app_state.db_path_cache,
-            &path_info_rep,
-        )
-        .await?;
+        path_id = check_and_save_path(bucket_id, &path.clone(), &app_state.db_path_cache, &path_info_rep).await?;
     }
     if file_name.len() > 64 {
         return Ok(web::Json(result_error_msg("file name to lang (max=64)")));
     }
-    insert_file_name(
-        bucket_id,
-        &file_rep,
-        fid,
-        path_id,
-        &file_name,
-        &path,
-        &file_type,
-        uploaded_files,
-        &size,
-    )
-    .await?;
+    insert_file_name(bucket_id, &file_rep, fid, path_id, &file_name, &path, &file_type, uploaded_files, &size).await?;
     Ok(web::Json(result_data(fid.to_string())))
 }
 
@@ -181,11 +163,11 @@ async fn insert_file_error(conn: &MySqlPool, error_files: Vec<String>) -> Result
     sqlx::query(
         "insert into file_info (file, error_count, del_status, create_time)VALUES(?,0,:0,?)",
     )
-    .bind(&items_str)
-    .bind(Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
-    .execute(conn)
-    .await
-    .unwrap();
+        .bind(&items_str)
+        .bind(Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
+        .execute(conn)
+        .await
+        .unwrap();
 
     Ok(())
 }
@@ -222,11 +204,10 @@ async fn insert_file_name(
     params.insert("bucket_id", bucket_id.to_string());
     params.insert("path_ref", path_ref.to_string());
     params.insert("name", name.to_string());
-    if(root){
+    if (root) {
         params.insert("full_path", full_path.to_owned());
-    }
-    else{
-        params.insert("full_path", format!("{}/",full_path));
+    } else {
+        params.insert("full_path", format!("{}/", full_path));
     }
 
     params.insert("file_type", file_type.as_ref().to_string());

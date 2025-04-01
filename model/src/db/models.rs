@@ -1,4 +1,5 @@
 use crate::date_format::date_format;
+use common::RightType;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::NaiveDateTime;
 use sqlx::types::Json;
@@ -6,7 +7,6 @@ use sqlx::{FromRow, MySqlPool, Type};
 use std::path::Path;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, EnumString};
-use common::RightType;
 //查询分页对像
 
 

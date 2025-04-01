@@ -1,24 +1,22 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 use anyhow::Context;
-use clap::{Parser, ValueEnum};
 use std::io::prelude::*;
 use zip::{result::ZipError, write::SimpleFileOptions, CompressionMethod};
 
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 use hex::encode;
+use std::fs::File;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 use walkdir::{DirEntry, WalkDir};
 
 
+use crate::{AppError, AppState, UserCache};
 use actix_web::{web, HttpRequest};
-use actix_web::web::method;
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
 use uuid::Uuid;
-use crate::{AppError, AppState, UserCache};
 
 pub fn copy_to<A, B>(a: A, b: B) -> B
 where

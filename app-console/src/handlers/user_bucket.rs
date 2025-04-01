@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{post, web, Responder};
 use common::{result, result_list, AppError, AppState, RightType};
-use model::{BucketInfoResult, Repository, UserBucketRepository};
+use model::{Repository, UserBucketRepository};
 use serde::Deserialize;
 use validator::Validate;
 

@@ -1,12 +1,11 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 use anyhow::Context;
-use clap::{Parser, ValueEnum};
 use std::io::prelude::*;
-use zip::{result::ZipError, write::SimpleFileOptions, CompressionMethod};
+use zip::{result::ZipError, write::SimpleFileOptions};
 
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
 // #[derive(Clone, ValueEnum)]

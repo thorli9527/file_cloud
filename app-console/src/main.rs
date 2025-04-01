@@ -1,19 +1,19 @@
 mod handlers;
 
-use actix_web::{App, HttpServer, cookie, web};
+use actix_session::config::PersistentSession;
 // use app_api::ApiDoc;
 use actix_session::SessionMiddleware;
-use actix_session::config::PersistentSession;
 use actix_web::cookie::Key;
 use actix_web::middleware::Logger;
+use actix_web::{cookie, web, App, HttpServer};
+use app_console::AuthMiddleware;
 use common::{AppState, UserCache};
 use log::info;
+use model::db;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
-use app_console::AuthMiddleware;
-use model::db;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

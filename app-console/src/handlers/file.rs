@@ -1,7 +1,7 @@
 use actix_web::web::Data;
-use actix_web::{HttpRequest, Responder, post, web};
+use actix_web::{post, web, Responder};
 use chrono::NaiveDateTime;
-use common::{AppError, AppState, OrderType, result_data, result_list};
+use common::{result_data, AppError, AppState, OrderType};
 use model::date_format::date_format;
 use model::{
     FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository,

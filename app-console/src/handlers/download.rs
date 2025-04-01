@@ -1,26 +1,16 @@
-use std::collections::HashMap;
-use actix_web::{HttpRequest, HttpResponse, Responder, get, post, web};
-use common::{AppError, AppState, RightType, get_session_user, do_zip};
+use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
+use common::{do_zip, get_session_user, AppError, AppState, RightType};
 use model::{
     BucketRepository, FileInfo, FileRepository, PathInfo, PathRepository, Repository,
     UserBucketRepository,
 };
+use std::collections::HashMap;
 use std::fs;
-use std::io::{Read};
-use std::path::{PathBuf};
 use tempfile::tempdir;
 
-use chrono::Utc;
+use actix_web::http::header;
 use tokio::fs::File;
-use std::io::{Write, Seek};
-use std::path::{Path};
-use actix_web::http::{header, StatusCode};
-use log::warn;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use walkdir::WalkDir;
-use zip::write::{FileOptions, ZipWriter};
-use zip::{CompressionMethod, DateTime};
-use zip::result::ZipResult;
 use tokio_util::io::ReaderStream;
 pub fn configure(cfg: &mut web::ServiceConfig, state: web::Data<AppState>) {
     cfg.app_data(state.clone()).service(download);
