@@ -37,7 +37,7 @@ pub async fn login(
 ) -> Result<impl Responder, AppError> {
     let result = user_rep.login(&dto.user_name, &dto.password).await?;
     let session_id = &build_id();
-    let bucket_list = user_bucket_rep.query_by_user_id(result.id).await?;
+    let bucket_list = user_bucket_rep.query_by_user_id_and_bucket_Id(&result.id,&result.id).await?;
     let mut bucket_cache_list: Vec<BucketCache> = Vec::new();
     for bucket in bucket_list {
         bucket_cache_list.push(BucketCache {
@@ -63,8 +63,8 @@ async fn logout(state: web::Data<AppState>, req: HttpRequest) -> Result<impl Res
     let auth_header = req.headers().get("Authorization");
     if let Some(auth_value) = auth_header {
         if let Ok(auth_str) = auth_value.to_str() {
-            if auth_str.starts_with("Token ") {
-                let token_key = &auth_str[8..];
+            if auth_str.starts_with("Bearer ") {
+                let token_key = &auth_str[9..];
                 state.session_cache.remove(token_key);
             }
         }

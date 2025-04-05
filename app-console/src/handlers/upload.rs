@@ -1,18 +1,17 @@
 use actix_multipart::Multipart;
-use actix_web::{post, web, Responder};
+use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::{Datelike, Local, Timelike};
-use common::{
-    build_id, build_snow_id, result_data, result_error_msg, AppError, AppState, RightType,
-};
+use common::{build_id, build_snow_id, build_time, get_session_user, result, result_data, result_error_msg, AppError, AppState, RightType};
 use futures_util::StreamExt;
 use model::*;
 use moka::future::Cache;
-use sqlx::MySqlPool;
+use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use web::Data;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
@@ -21,49 +20,36 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
 
 const CHUNK_SIZE: usize = 4 * 1024 * 1024; // ✅ 4MB 分片
 
+
 /// **处理文件上传（4MB 分片）**
-#[post("/upload/{bucket}/{user_id}")]
+#[post("/upload/{bucket_id}/{pathId}")]
 pub async fn upload_file(
-    params: web::Path<(String, i64)>,
+    parmas: web::Path<(i64, i64)>,
     app_state: web::Data<AppState>,
     path_info_rep: web::Data<PathRepository>,
     user_bucket_rep: web::Data<UserBucketRepository>,
-    bucket_rep: web::Data<BucketRepository>,
     file_rep: web::Data<FileRepository>,
+    req: HttpRequest,
     mut payload: Multipart,
 ) -> Result<impl Responder, AppError> {
-    let (bucket, user_id) = &*params;
-    let user_bucket_list_right = user_bucket_rep.query_by_user_id(*user_id).await?;
-    let mut write = false;
-    let mut bucket_id = 0;
-    for user_bucket_tmp in &user_bucket_list_right {
-        if user_bucket_tmp.name == *bucket {
-            match &user_bucket_tmp.right {
-                RightType::Read => {
-                    write = false;
-                    bucket_id = user_bucket_tmp.bucket_id.clone();
-                }
-                (item) => {
-                    write = true;
-                }
-            }
-        }
-    }
-    if !write {
-        let mut parmas: HashMap<&str, String> = HashMap::new();
-        parmas.insert("name", bucket.clone());
-        let bucket_list = bucket_rep.dao.query_by_params(parmas).await?;
-        if bucket_list.len() > 0 {
-            let bucket_info = bucket_list[0].clone();
-            if bucket_info.pub_write {
-                write = true;
-                bucket_id = bucket_info.id.clone();
-            }
-        }
-    }
+    let (bucket_id, path_id) = parmas.into_inner();
 
-    if !write {
-        return Ok(web::Json(result_error_msg("no.right")));
+    if (path_id != 0) {
+        let path_info = path_info_rep.dao.find_by_id(path_id).await?;
+        if (path_info.bucket_id != bucket_id) {
+            return Err(AppError::InvalidInput("InvalidInput.params".to_owned()));
+        }
+    }
+    let user_cache = get_session_user(&app_state, req).await?;
+    let mut right = false;
+    if (user_cache.is_admin) {
+        right = true;
+    }
+    if (right == false) {
+        let mut user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_cache.id, &&bucket_id).await?;
+        if (user_bucket_list_right.is_empty()) {
+            return Ok(web::Json(result_error_msg("no.right")));
+        }
     }
 
     let mut path = String::new();
@@ -77,14 +63,6 @@ pub async fn upload_file(
         let dir_name = build_dir_name(&app_state.root_path, &app_state.dir_create_cache).await?;
 
         match content_disposition.get_name().unwrap() {
-            "path" => {
-                // 读取普通表单字段（文本）
-                let mut data = String::new();
-                while let Some(chunk) = field.next().await {
-                    data.push_str(&String::from_utf8_lossy(&chunk?));
-                }
-                path = data;
-            }
             "file" => {
                 let mut fid = build_id();
                 // 定义分片文件的路径
@@ -136,21 +114,17 @@ pub async fn upload_file(
     //s
     let file_type = FileType::get_file_type(&file_name);
 
-    if path.len() > 128 {
-        return Ok(web::Json(result_error_msg("path name to lang (max=128)")));
+    if path_id != 0
+    {
+        path = path_info_rep.dao.find_by_id(path_id).await?.full_path;
     }
 
-    let mut path_id = 0;
-    if path.is_empty() || path == "/" || path == "" {
-        path = String::from("");
-    } else {
-        path_id = check_and_save_path(bucket_id, &path.clone(), &app_state.db_path_cache, &path_info_rep).await?;
-    }
     if file_name.len() > 64 {
         return Ok(web::Json(result_error_msg("file name to lang (max=64)")));
     }
-    insert_file_name(bucket_id, &file_rep, fid, path_id, &file_name, &path, &file_type, uploaded_files, &size).await?;
-    Ok(web::Json(result_data(fid.to_string())))
+    insert_file_name(&bucket_id, &file_rep, fid, path_id, &file_name, &path, &file_type, uploaded_files, &size).await?;
+    // Ok(web::Json(result_data(fid.to_string())))
+    Ok(web::Json(result()))
 }
 
 async fn insert_file_error(conn: &MySqlPool, error_files: Vec<String>) -> Result<(), AppError> {
@@ -176,7 +150,7 @@ async fn insert_file_error(conn: &MySqlPool, error_files: Vec<String>) -> Result
 ///
 /// 插入文件
 async fn insert_file_name(
-    bucket_id: i64,
+    bucket_id: &i64,
     file_rep: &FileRepository,
     id: i64,
     path_ref: i64,
@@ -226,10 +200,11 @@ async fn insert_file_name(
     Ok(())
 }
 
+
 ///
 /// 检查目录是否存在
 async fn check_and_save_path(
-    bucket_id: i64,
+    bucket_id: &i64,
     full_path: &String,
     db_path_cache: &Arc<Cache<String, String>>,
     path_info_rep: &PathRepository,
@@ -294,8 +269,7 @@ async fn check_and_save_path(
                 params.insert("bucket_id", bucket_id.to_string());
                 params.insert("path", path_item.to_string());
                 params.insert("parent", parent_id.to_string());
-                let now = Local::now();
-                params.insert("create_time", now.format("%Y-%m-%d %H:%M:%S").to_string());
+                params.insert("create_time", build_time().await);
                 params.insert("full_path", "".to_owned());
                 path_info_rep.dao.insert(params).await?;
                 finally_id = current_id;

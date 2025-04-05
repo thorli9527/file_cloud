@@ -1,7 +1,7 @@
 use actix_web::web::Data;
-use actix_web::{post, web, Responder};
+use actix_web::{post, web, HttpRequest, Responder};
 use chrono::NaiveDateTime;
-use common::{result_data, AppError, AppState, OrderType};
+use common::{get_session_user, result, result_data, AppError, AppState, OrderType, RightType};
 use model::date_format::date_format;
 use model::{
     FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository,
@@ -13,36 +13,48 @@ use std::collections::HashMap;
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(file_list);
     cfg.service(file_path_info);
+    cfg.service(mkdir);
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-enum QueryDataType {
-    FILE,
-    DIR,
+#[post("/file/mkdir")]
+pub async fn mkdir(dto: web::Json<PathNewDao>,
+                   app_state: web::Data<AppState>,
+                   path_info_rep: web::Data<PathRepository>,
+                   user_bucket_rep: web::Data<UserBucketRepository>,
+                   req: HttpRequest, ) -> Result<impl Responder, AppError> {
+    if(dto.parent==0 && dto.path.is_empty()) {
+        return Err(AppError::InvalidInput("invalid.params".to_string()));
+    }
+    let user = get_session_user(&app_state, req).await?;
+    let mut right = false;
+    if user.is_admin {
+        right = true;
+    }
+    if !right {
+        let user_bucket = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id, &dto.bucket_id).await?;
+        if user_bucket.is_empty() {
+            return Err(AppError::NoRight("no.right".to_string()))
+        }
+        match &user_bucket[0].right {
+            RightType::Write => {
+                right = true;
+            }
+            RightType::ReadWrite => {
+                right = true;
+            }
+            _ => {
+                return Err(AppError::NoRight("no.right".to_string()))
+            }
+        }
+    }
+    if !right {
+        return Err(AppError::NoRight("no.right".to_string()))
+    }
+    path_info_rep.new_path(&dto.path,&dto.parent,&dto.bucket_id).await?;
+    Ok(web::Json(result()))
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PathQuery {
-    path_id: i64,
-    bucket_id: i64,
-    page_size: i16,
-    query_type: QueryDataType,
-    max_id: i64,
-}
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileResult {
-    id: i64,
-    file_name: String,
-    file_type: FileType,
-    bucket_id:i64,
-    size: u32,
-    image_type: ImageType,
-    #[serde(with = "date_format")]
-    pub create_time: NaiveDateTime,
-}
+
 #[post("/file/path/{id}")]
 async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,)-> Result<impl Responder, AppError> {
     let result = path_rep.dao.find_by_id(*path_id).await?;
@@ -114,4 +126,41 @@ async fn file_list(
         }
     }
     Ok(web::Json(result_data(result_list)))
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum QueryDataType {
+    FILE,
+    DIR,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PathQuery {
+    path_id: i64,
+    bucket_id: i64,
+    page_size: i16,
+    query_type: QueryDataType,
+    max_id: i64,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileResult {
+    id: i64,
+    file_name: String,
+    file_type: FileType,
+    bucket_id:i64,
+    size: u32,
+    image_type: ImageType,
+    #[serde(with = "date_format")]
+    pub create_time: NaiveDateTime,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PathNewDao{
+    bucket_id:i64,
+    parent:i64,
+    path:String,
 }

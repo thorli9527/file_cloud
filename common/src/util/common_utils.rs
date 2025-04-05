@@ -96,8 +96,8 @@ impl SafeSnowflake {
 
 
 
-pub async fn get_session_user(
-    state: web::Data<AppState>,
+pub async fn  get_session_user(
+    state: &web::Data<AppState>,
     req: HttpRequest,
 ) -> Result<UserCache, AppError> {
     if(1==1){

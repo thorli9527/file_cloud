@@ -26,14 +26,14 @@ async fn download_path(
     path_rep: web::Data<PathRepository>,
     file_rep: web::Data<FileRepository>,
 ) -> Result<impl Responder, AppError> {
-    let user = get_session_user(state, req).await?;
+    let user = get_session_user(&state, req).await?;
     let (bucket_id, path_id) = params.into_inner();
     let mut has_right = false;
     if (user.is_admin) {
         has_right = true;
     }
     if (!has_right) {
-        let user_bucket_list = user_bucket_rep.query_by_user_id(user.id.clone()).await?;
+        let user_bucket_list = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id,&bucket_id).await?;
         for user_bucket in user_bucket_list {
             if user_bucket.bucket_id == bucket_id {
                 match &user_bucket.right {
@@ -121,8 +121,8 @@ async fn download(
     }
 
     if !has_right {
-        let user_id = get_session_user(state, req).await?.id;
-        let user_bucket_list_right = user_bucket_rep.query_by_user_id(user_id).await?;
+        let user_id = get_session_user(&state, req).await?.id;
+        let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id,&bucket_info.id).await?;
         for user_bucket_tmp in &user_bucket_list_right {
             if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
                 match &user_bucket_tmp.right {

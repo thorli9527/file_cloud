@@ -8,29 +8,6 @@ use std::fs::File;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
-// #[derive(Clone, ValueEnum)]
-// enum CompressionMethod {
-//     Stored,
-//     Deflated,
-//     DeflatedZlib,
-//     DeflatedZlibNg,
-//     Bzip2,
-//     Zstd,
-// }
-
-// fn main() {
-//     // std::process::exit(real_main());
-//     let x = "/Users/thorli/tools/rar";
-//     let x1 = "/Users/thorli/tools/rar.zip";
-//     let src_path = Path::new(x);
-//     let dst_file = Path::new(x1);
-//     match doit(src_path, dst_file, zip::CompressionMethod::Deflated) {
-//         Ok(_) => println!("done: {:?} written to {:?}", src_path, dst_file),
-//         Err(e) => eprintln!("Error: {e:?}"),
-//     }
-// }
-
-
 fn zip_dir<T>(
     it: &mut dyn Iterator<Item = DirEntry>,
     prefix: &Path,
@@ -55,10 +32,7 @@ where
             .map(str::to_owned)
             .with_context(|| format!("{name:?} Is a Non UTF-8 Path"))?;
 
-        // Write file or directory explicitly
-        // Some unzip tools unzip files with directory paths correctly, some do not!
         if path.is_file() {
-            println!("adding file {path:?} as {name:?} ...");
             zip.start_file(path_as_string, options)?;
             let mut f = File::open(path)?;
 
@@ -66,9 +40,6 @@ where
             zip.write_all(&buffer)?;
             buffer.clear();
         } else if !name.as_os_str().is_empty() {
-            // Only if not root! Avoids path spec / warning
-            // and mapname conversion failed error on unzip
-            println!("adding dir {path_as_string:?} as {name:?} ...");
             zip.add_directory(path_as_string, options)?;
         }
     }

@@ -2,7 +2,7 @@ use crate::{
     query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository,
     UserBucket, UserBucketRight, UserInfo,
 };
-use common::{build_md5, AppError, RightType};
+use common::{build_md5, build_snow_id, build_time, AppError, RightType};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use sqlx::types::Json;
 use sqlx::{FromRow, MySqlPool};
 use std::collections::HashMap;
 use std::{str, sync::Arc};
+use chrono::Local;
 use validator::Validate;
 
 pub struct UserRepository {
@@ -52,6 +53,27 @@ impl PathRepository {
         }
     }
 
+    pub async fn  new_path(&self, path: &String, pid: &i64,bucket_id:&i64) -> Result<i64, AppError> {
+        let mut params: HashMap<&str, String> = HashMap::new();
+        let mut full_path = String::new();
+        if pid != &0 {
+            let parent_info = self.dao.find_by_id(pid.clone()).await?;
+            full_path = format!("{}/{}", parent_info.path, &path);
+            params.insert("root", "0".to_owned());
+        }
+        else{
+            params.insert("root", "1".to_owned());
+        }
+        params.insert("bucket_id", bucket_id.to_string());
+        params.insert("path", path.to_string());
+        let i = build_snow_id();
+        params.insert("id", i.to_string());
+        params.insert("parent", pid.to_string());
+        params.insert("full_path", full_path);
+        params.insert("create_time", build_time().await);
+        self.dao.insert(params).await?;
+        return Ok(i);
+    }
 }
 
 pub struct BucketRepository {
@@ -111,7 +133,7 @@ impl FileRepository {
         let query = format!(
             r#"
            SELECT
-                sum(file_info.size)
+                COALESCE(SUM(file_info.size), 0)
             FROM
                 file_info
             WHERE
@@ -126,12 +148,12 @@ impl FileRepository {
     }
 
 
-    pub async fn path_file_list(&self, full_path: &str,max_id:i64,bucket_id:i64) -> Result<Vec<FileInfo>, AppError> {
+    pub async fn path_file_list(&self, full_path: &str, max_id: i64, bucket_id: i64) -> Result<Vec<FileInfo>, AppError> {
         let query = format!(
             r#"
             SELECT * from {} where bucket_id ={} and full_path LIKE '{}/%' and id>{} order by id asc
                 "#,
-            self.dao.table_name,bucket_id,full_path,max_id
+            self.dao.table_name, bucket_id, full_path, max_id
         );
         let list_result = sqlx::query_as::<_, FileInfo>(&query)
             .fetch_all(&*self.dao.pool)
@@ -139,15 +161,15 @@ impl FileRepository {
         return Ok(list_result);
     }
 }
-
-pub struct UserBucketRepository {
-    pub dao: BaseRepository<UserBucket>,
-}
 #[derive(Debug, Serialize, Deserialize, FromRow, Validate, Clone)]
 pub struct BucketInfoResult {
     pub bucket_id: i64,
     pub name: String,
     pub right: RightType,
+}
+
+pub struct UserBucketRepository {
+    pub dao: BaseRepository<UserBucket>,
 }
 
 impl UserBucketRepository {
@@ -175,7 +197,7 @@ impl UserBucketRepository {
                     RightType::Write => "write",
                     RightType::ReadWrite => "read_write",
                 }
-                .to_string(),
+                    .to_string(),
             );
             self.dao.change(list[0].id, params).await?;
             return Ok(());
@@ -187,20 +209,16 @@ impl UserBucketRepository {
                     RightType::Write => "write",
                     RightType::ReadWrite => "read_write",
                 }
-                .to_string(),
+                    .to_string(),
             );
             self.dao.insert(params.clone());
         }
         Ok(())
     }
 
-    pub async fn query_by_user_id(&self, user_id: i64) -> Result<Vec<BucketInfoResult>, AppError> {
-        if user_id == 0 {
-            return Err(AppError::BizError("user_id.is_empty".to_owned()));
-        }
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_id", user_id.to_string());
-        let sql = r#"
+    pub async fn query_by_user_id_and_bucket_Id(&self, user_id: &i64, bucket_id: &i64) -> Result<Vec<BucketInfoResult>, AppError> {
+        let params: HashMap<&str, String> = HashMap::new();
+        let sql = format!(r#"
             SELECT distinct
                 bucket.id as bucket_id,
                 user_bucket.`right`,
@@ -216,8 +234,8 @@ impl UserBucketRepository {
                 ON
                     user_bucket.bucket_id = bucket.id
             WHERE
-                user_bucket.user_id = ?
-                "#;
+                user_bucket.user_id = {} and bucket_id={}
+                "#, user_id, bucket_id);
         let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
         Ok(vec)
     }

@@ -31,6 +31,8 @@ pub trait Repository<T: for<'r> sqlx::FromRow<'r, MySqlRow>> {
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError>;
     //query count
     async fn query_by_count(&self, params: HashMap<&str, String>) -> Result<i64, AppError>;
+    //query by sql
+    async fn query_by_sql(&self, sql: &String) -> Result<Vec<T>,AppError>;
     //page query
     async fn query_by_page(
         &self,
@@ -133,7 +135,11 @@ where
         let result = sql_query.fetch_one(&*self.pool).await?;
         Ok(result)
     }
-
+    async fn query_by_sql(&self, sql: &String) -> Result<Vec<T>, AppError> {
+        let sql_query = sqlx::query_as::<_, T>(sql);
+        let result = sql_query.fetch_all(&*self.pool).await?;
+        Ok(result)
+    }
     async fn query_by_params(&self, params: HashMap<&str, String>) -> Result<Vec<T>, AppError> {
         let mut query = format!("SELECT * FROM {} WHERE ", self.table_name);
         let mut values = vec![];
