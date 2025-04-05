@@ -27,6 +27,7 @@ impl PathDelTaskRepository {
         params.insert("path_id", task.path_id.to_string());
         params.insert("del_file_status", "0".to_owned());
         params.insert("del_path_status", "0".to_owned());
+        params.insert("create_time", build_time().await.to_owned());
         self.dao.insert(params).await?;
         path_rep.dao.del_by_id(task.path_id).await?;
         tx.commit().await?;

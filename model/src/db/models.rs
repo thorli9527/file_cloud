@@ -6,6 +6,7 @@ use sqlx::types::Json;
 use sqlx::{FromRow, MySqlPool, Type};
 use std::path::Path;
 use std::str::FromStr;
+use sqlx::mysql::MySqlPoolOptions;
 use strum_macros::{AsRefStr, EnumString};
 //查询分页对像
 
@@ -163,7 +164,9 @@ pub struct PathDelTask{
     pub id: i64,
     pub path_id:i64,
     pub del_file_status:bool,
-    pub del_path_status:bool
+    pub del_path_status:bool,
+    #[serde(with = "date_format")]
+    pub create_time: NaiveDateTime,
 }
 impl FileInfo {}
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default)]
@@ -179,7 +182,10 @@ pub struct PathInfo {
 }
 
 pub async fn get_conn(url: &String) -> MySqlPool {
-    return MySqlPool::connect(&url)
+    let pool = MySqlPoolOptions::new()
+        .max_connections(20)
+        .connect(&url)
         .await
         .expect("Failed to connect to database");
+    return pool;
 }

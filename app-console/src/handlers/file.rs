@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{post, web, App, HttpRequest, Responder};
-use chrono::NaiveDateTime;
-use common::{build_snow_id, get_session_user, result, result_data, result_list, AppError, AppState, OrderType, RightType};
+use chrono::{Local, NaiveDateTime};
+use common::{build_snow_id, build_time, get_session_user, result, result_data, result_list, AppError, AppState, OrderType, RightType};
 use model::date_format::date_format;
 use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathDelTask, PathDelTaskRepository, PathRepository, Repository, UserBucketRepository, UserRepository};
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(file_path_info);
     cfg.service(mkdir);
     cfg.service(file_del);
+    cfg.service(del_path);
 }
 
 #[post("/file/mkdir")]
@@ -22,7 +23,7 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
                    path_info_rep: web::Data<PathRepository>,
                    user_bucket_rep: web::Data<UserBucketRepository>,
                    req: HttpRequest, ) -> Result<impl Responder, AppError> {
-    if(dto.parent==0 && dto.path.is_empty()) {
+    if (dto.parent == 0 && dto.path.is_empty()) {
         return Err(AppError::InvalidInput("invalid.params".to_string()));
     }
     let user = get_session_user(&app_state, req).await?;
@@ -33,7 +34,7 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
     if !right {
         let user_bucket = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id, &dto.bucket_id).await?;
         if user_bucket.is_empty() {
-            return Err(AppError::NoRight("no.right".to_string()))
+            return Err(AppError::NoRight("no.right".to_string()));
         }
         match &user_bucket[0].right {
             RightType::Write => {
@@ -48,36 +49,36 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
         }
     }
     if !right {
-        return Err(AppError::NoRight("no.right".to_string()))
+        return Err(AppError::NoRight("no.right".to_string()));
     }
-    path_info_rep.new_path(&dto.path,&dto.parent,&dto.bucket_id).await?;
+    path_info_rep.new_path(&dto.path, &dto.parent, &dto.bucket_id).await?;
     Ok(web::Json(result()))
 }
 
 
 #[post("/file/path/{id}")]
-async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,)-> Result<impl Responder, AppError> {
+async fn file_path_info(path_id: web::Path<i64>, path_rep: Data<PathRepository>) -> Result<impl Responder, AppError> {
     let result = path_rep.dao.find_by_id(*path_id).await?;
     Ok(web::Json(result_data(result)))
 }
-#[post("/file/delete/{path_id}")]
+#[post("/file/del_path/{path_id}")]
 async fn del_path(
-    path_id:web::Path<i64>,
+    path_id: web::Path<i64>,
     req: HttpRequest,
     state: web::Data<AppState>,
     path_rep: Data<PathRepository>,
-    path_del_task_rep:Data<PathDelTaskRepository>,
-    user_bucket_rep: Data<UserBucketRepository>,)->Result<impl Responder,AppError>{
+    path_del_task_rep: Data<PathDelTaskRepository>,
+    user_bucket_rep: Data<UserBucketRepository>, ) -> Result<impl Responder, AppError> {
     let user = get_session_user(&state, req).await?;
     let mut right = false;
     if user.is_admin {
         right = true;
     }
-    let path_info=path_rep.dao.find_by_id(*path_id).await?;
+    let path_info = path_rep.dao.find_by_id(*path_id).await?;
     if !right {
         let user_bucket = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id, &path_info.bucket_id).await?;
         if user_bucket.is_empty() {
-            return Err(AppError::NoRight("no.right".to_string()))
+            return Err(AppError::NoRight("no.right".to_string()));
         }
         match &user_bucket[0].right {
             RightType::Write => {
@@ -92,20 +93,21 @@ async fn del_path(
         }
     }
     if !right {
-        return Err(AppError::NoRight("no.right".to_string()))
+        return Err(AppError::NoRight("no.right".to_string()));
     }
-    let path_del_task=PathDelTask{id:build_snow_id(),path_id:*path_id,del_file_status:false,del_path_status:false};
-    path_del_task_rep.create(path_del_task,&path_rep);
+    let now = Local::now();
+    let path_del_task = PathDelTask { id: build_snow_id(), path_id: *path_id, del_file_status: false, del_path_status: false,create_time:now.naive_local()};
+    path_del_task_rep.create(path_del_task, &path_rep).await?;
     Ok(web::Json(result()))
 }
 #[post("/file/delete/{file_id}")]
-async  fn file_del(
-    file_id:web::Path<i64>,
+async fn file_del(
+    file_id: web::Path<i64>,
     req: HttpRequest,
     state: web::Data<AppState>,
     file_rep: Data<FileRepository>,
     bucket_rep: web::Data<BucketRepository>,
-    user_bucket_rep: Data<UserBucketRepository>,)->Result<impl Responder,AppError>
+    user_bucket_rep: Data<UserBucketRepository>, ) -> Result<impl Responder, AppError>
 {
     let file_info: FileInfo = match file_rep.dao.find_by_id(*file_id).await {
         Ok(file) => file,
@@ -119,7 +121,7 @@ async  fn file_del(
 
     if !has_right {
         let user_id = get_session_user(&state, req).await?.id;
-        let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id,&bucket_info.id).await?;
+        let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id, &bucket_info.id).await?;
         for user_bucket_tmp in &user_bucket_list_right {
             if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
                 match &user_bucket_tmp.right {
@@ -138,7 +140,7 @@ async  fn file_del(
     }
     let item_files = file_info.items;
     for file_item in item_files.iter() {
-       let msg=match fs::remove_file(&file_item.path).await {
+        let msg = match fs::remove_file(&file_item.path).await {
             Ok(_) => "",
             Err(e) => &e.to_string(),
         };
@@ -174,11 +176,11 @@ async fn file_list(
             .query_by_max_id(query.max_id, path_params, OrderType::ASC, &query.page_size)
             .await?;
         for item in path_list {
-            let path_file_name=format!("{}{}",&item.full_path,"/");
+            let path_file_name = format!("{}{}", &item.full_path, "/");
             let x = file_rep.path_size(&path_file_name).await?;
             let file = FileResult {
                 id: item.id,
-                bucket_id:item.bucket_id,
+                bucket_id: item.bucket_id,
                 file_name: item.path,
                 file_type: FileType::DIR,
                 size: x.clone() as u32,
@@ -204,7 +206,7 @@ async fn file_list(
         for item in file_list {
             let file = FileResult {
                 id: item.id,
-                bucket_id:item.bucket_id,
+                bucket_id: item.bucket_id,
                 file_name: item.name,
                 file_type: item.file_type,
                 size: item.size,
@@ -239,7 +241,7 @@ pub struct FileResult {
     id: i64,
     file_name: String,
     file_type: FileType,
-    bucket_id:i64,
+    bucket_id: i64,
     size: u32,
     image_type: ImageType,
     #[serde(with = "date_format")]
@@ -248,8 +250,8 @@ pub struct FileResult {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct PathNewDao{
-    bucket_id:i64,
-    parent:i64,
-    path:String,
+struct PathNewDao {
+    bucket_id: i64,
+    parent: i64,
+    path: String,
 }
