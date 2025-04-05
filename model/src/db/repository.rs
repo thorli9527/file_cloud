@@ -97,7 +97,7 @@ where
     }
 
     async fn del_by_id(&self, id: i64) -> Result<u64, AppError> {
-        let query = format!("DELETE FROM {} WHERE id = ?", self.table_name);
+        let query = format!("DELETE FROM {} WHERE id = {}", self.table_name,id);
         let result = sqlx::query(&query).bind(id).execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }

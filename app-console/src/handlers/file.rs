@@ -1,19 +1,19 @@
 use actix_web::web::Data;
-use actix_web::{post, web, HttpRequest, Responder};
+use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::NaiveDateTime;
 use common::{get_session_user, result, result_data, AppError, AppState, OrderType, RightType};
 use model::date_format::date_format;
-use model::{
-    FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository,
-    UserRepository,
-};
+use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository, UserRepository};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use log::error;
+use tokio::fs;
 
 pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(file_list);
     cfg.service(file_path_info);
     cfg.service(mkdir);
+    cfg.service(file_del);
 }
 
 #[post("/file/mkdir")]
@@ -59,6 +59,57 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
 async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,)-> Result<impl Responder, AppError> {
     let result = path_rep.dao.find_by_id(*path_id).await?;
     Ok(web::Json(result_data(result)))
+}
+#[post("/file/delete/{file_id}")]
+async  fn file_del(
+    file_id:web::Path<i64>,
+    req: HttpRequest,
+    state: web::Data<AppState>,
+    file_rep: Data<FileRepository>,
+    bucket_rep: web::Data<BucketRepository>,
+    user_bucket_rep: Data<UserBucketRepository>,)->Result<impl Responder,AppError>
+{
+    let file_info: FileInfo = match file_rep.dao.find_by_id(*file_id).await {
+        Ok(file) => file,
+        Err(e) => return Err(AppError::NotFound("file.not.found".to_owned())),
+    };
+    let mut has_right = false;
+    let bucket_info = bucket_rep.dao.find_by_id(file_info.bucket_id).await?;
+    if bucket_info.pub_read {
+        has_right = true;
+    }
+
+    if !has_right {
+        let user_id = get_session_user(&state, req).await?.id;
+        let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id,&bucket_info.id).await?;
+        for user_bucket_tmp in &user_bucket_list_right {
+            if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
+                match &user_bucket_tmp.right {
+                    RightType::Write => {
+                        has_right = false;
+                    }
+                    (item) => {
+                        has_right = true;
+                    }
+                }
+            }
+        }
+    }
+    if !has_right {
+        return Err(AppError::NoRight("no.right".to_owned()));
+    }
+    let item_files = file_info.items;
+    for file_item in item_files.iter() {
+       let msg=match fs::remove_file(&file_item.path).await {
+            Ok(_) => "",
+            Err(e) => &e.to_string(),
+        };
+        if !msg.is_empty() {
+            error!("delete file {} error: {}", file_item.path, msg);
+        }
+    }
+    file_rep.dao.del_by_id(*file_id).await?;
+    Ok(web::Json(result()))
 }
 
 #[post("/file/list")]
