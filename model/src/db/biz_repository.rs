@@ -1,17 +1,38 @@
-use crate::{
-    query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathInfo, Repository,
-    UserBucket, UserBucketRight, UserInfo,
-};
+use crate::{query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathDelTask, PathInfo, Repository, UserBucket, UserBucketRight, UserInfo};
 use common::{build_md5, build_snow_id, build_time, AppError, RightType};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, MySqlPool};
+use sqlx::{FromRow, MySql, MySqlPool, Transaction};
 use std::collections::HashMap;
 use std::{str, sync::Arc};
 use chrono::Local;
 use validator::Validate;
+
+
+pub struct PathDelTaskRepository {
+    pub dao: BaseRepository<PathDelTask>,
+}
+impl PathDelTaskRepository {
+    pub fn new(pool: Arc<MySqlPool>) -> Self {
+        Self {
+            dao: BaseRepository::new(pool, "path_del_task"),
+        }
+    }
+    pub async fn create(&self, task: PathDelTask, path_rep: &PathRepository) -> Result<(), AppError> {
+        let mut tx: Transaction<'_, MySql> = self.dao.pool.begin().await?;
+        let mut params: HashMap<&str, String> = HashMap::new();
+        params.insert("id", task.id.to_string());
+        params.insert("path_id", task.path_id.to_string());
+        params.insert("del_file_status", "0".to_owned());
+        params.insert("del_path_status", "0".to_owned());
+        self.dao.insert(params).await?;
+        path_rep.dao.del_by_id(task.path_id).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
 
 pub struct UserRepository {
     pub dao: BaseRepository<UserInfo>,
@@ -53,16 +74,16 @@ impl PathRepository {
         }
     }
 
-    pub async fn  new_path(&self, path: &String, pid: &i64,bucket_id:&i64) -> Result<i64, AppError> {
+    pub async fn new_path(&self, path: &String, pid: &i64, bucket_id: &i64) -> Result<i64, AppError> {
         let mut params: HashMap<&str, String> = HashMap::new();
         let mut full_path = String::new();
         if pid != &0 {
             let parent_info = self.dao.find_by_id(pid.clone()).await?;
             full_path = format!("{}/{}", parent_info.path, &path);
             params.insert("root", "0".to_owned());
-        }
-        else{
+        } else {
             params.insert("root", "1".to_owned());
+            full_path = path.clone();
         }
         params.insert("bucket_id", bucket_id.to_string());
         params.insert("path", path.to_string());

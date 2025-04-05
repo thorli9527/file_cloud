@@ -158,6 +158,13 @@ pub struct FileItemDto{
     pub path:String,
     pub size:u32
 }
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default)]
+pub struct PathDelTask{
+    pub id: i64,
+    pub path_id:i64,
+    pub del_file_status:bool,
+    pub del_path_status:bool
+}
 impl FileInfo {}
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default)]
 pub struct PathInfo {

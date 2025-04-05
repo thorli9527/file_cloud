@@ -1,9 +1,9 @@
 use actix_web::web::Data;
 use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::NaiveDateTime;
-use common::{get_session_user, result, result_data, AppError, AppState, OrderType, RightType};
+use common::{build_snow_id, get_session_user, result, result_data, result_list, AppError, AppState, OrderType, RightType};
 use model::date_format::date_format;
-use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathRepository, Repository, UserBucketRepository, UserRepository};
+use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathDelTask, PathDelTaskRepository, PathRepository, Repository, UserBucketRepository, UserRepository};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use log::error;
@@ -59,6 +59,44 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
 async  fn file_path_info(path_id:web::Path<i64>, path_rep: Data<PathRepository>,)-> Result<impl Responder, AppError> {
     let result = path_rep.dao.find_by_id(*path_id).await?;
     Ok(web::Json(result_data(result)))
+}
+#[post("/file/delete/{path_id}")]
+async fn del_path(
+    path_id:web::Path<i64>,
+    req: HttpRequest,
+    state: web::Data<AppState>,
+    path_rep: Data<PathRepository>,
+    path_del_task_rep:Data<PathDelTaskRepository>,
+    user_bucket_rep: Data<UserBucketRepository>,)->Result<impl Responder,AppError>{
+    let user = get_session_user(&state, req).await?;
+    let mut right = false;
+    if user.is_admin {
+        right = true;
+    }
+    let path_info=path_rep.dao.find_by_id(*path_id).await?;
+    if !right {
+        let user_bucket = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id, &path_info.bucket_id).await?;
+        if user_bucket.is_empty() {
+            return Err(AppError::NoRight("no.right".to_string()))
+        }
+        match &user_bucket[0].right {
+            RightType::Write => {
+                right = true;
+            }
+            RightType::ReadWrite => {
+                right = true;
+            }
+            _ => {
+                return Err(AppError::NoRight("no.right".to_string()))
+            }
+        }
+    }
+    if !right {
+        return Err(AppError::NoRight("no.right".to_string()))
+    }
+    let path_del_task=PathDelTask{id:build_snow_id(),path_id:*path_id,del_file_status:false,del_path_status:false};
+    path_del_task_rep.create(path_del_task,&path_rep);
+    Ok(web::Json(result()))
 }
 #[post("/file/delete/{file_id}")]
 async  fn file_del(
