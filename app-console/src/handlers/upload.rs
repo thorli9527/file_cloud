@@ -244,15 +244,18 @@ async fn check_and_save_path(
         if cache_dir_id.is_empty() {
             let mut path_info: PathInfo = PathInfo::default();
             path_info.full_path = current_dir.clone();
-            let mut params: HashMap<&str, String> = HashMap::new();
-            params.insert("full_path", current_dir.to_string());
-            params.insert("bucket_id", bucket_id.to_string());
-            let list_path = path_info_rep.dao.query_by_params(params).await?;
+
+
+            let list_path = path_info_rep.dao.query_by_params(vec![
+                QueryParam::eq("full_path",current_dir.as_str()),
+                QueryParam::eq("bucket_id",bucket_id.to_string().as_str()),
+            ]).await?;
 
             if list_path.len() > 0 {
                 path_info = list_path[0].clone();
                 finally_id = path_info.id.clone();
             } else {
+                let mut params: HashMap<&str, String> = HashMap::new();
                 params = HashMap::new();
                 let current_id = build_snow_id();
                 params.insert("id", current_id.to_string());

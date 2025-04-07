@@ -2,7 +2,7 @@ use actix_web::web::Data;
 use actix_web::{post, web, Responder};
 use chrono::Local;
 use common::{build_id, build_md5, build_snow_id, result, result_data, result_page, result_warn_msg, AppError, AppState, PageInfo};
-use model::{Repository, UserRepository};
+use model::{QueryParam, Repository, UserRepository};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashMap;
@@ -23,8 +23,7 @@ async fn user_list(
     page: web::Json<PageInfo>,
     user_reg: web::Data<UserRepository>,
 ) -> Result<impl Responder, AppError> {
-    let params: HashMap<&str, String> = HashMap::new();
-    let page_result = user_reg.dao.query_by_page(params, &page).await?;
+    let page_result = user_reg.dao.query_by_page(vec![], &page).await?;
     Ok(web::Json(result_page(page_result)))
 }
 

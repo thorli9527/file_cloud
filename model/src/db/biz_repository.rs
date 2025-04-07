@@ -1,4 +1,4 @@
-use crate::{query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathDelTask, PathInfo, Repository, UserBucket, UserBucketRight, UserInfo};
+use crate::{query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathDelTask, PathInfo, QueryParam, Repository, UserBucket, UserBucketRight, UserInfo};
 use common::{build_md5, build_snow_id, build_time, AppError, RightType};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -46,14 +46,10 @@ impl UserRepository {
         }
     }
     pub async fn find_by_name(&self, user_name: String) -> Result<UserInfo, AppError> {
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_name", user_name.to_string());
-        return self.dao.find_by_one(params).await;
+        return self.dao.find_by_one(vec![QueryParam::eq("user_name",user_name.as_str())]).await;
     }
     pub async fn login(&self, user_name: &String, password: &String) -> Result<UserInfo, AppError> {
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_name", user_name.to_string());
-        let user_result = self.dao.query_by_params(params).await?;
+        let user_result = self.dao.query_by_params(vec![QueryParam::eq("user_name",user_name.as_str())]).await?;
         if user_result.len() > 0 {
             let info = &user_result[0];
             if info.password == build_md5(password) {
@@ -109,9 +105,7 @@ impl BucketRepository {
         }
     }
     pub async fn find_by_name(&self, name: &String) -> Result<Bucket, AppError> {
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("name", name.to_string());
-        return self.dao.find_by_one(params).await;
+        return self.dao.find_by_one(vec![QueryParam::eq("name",name.to_string().as_str())]).await;
     }
 }
 
@@ -207,11 +201,12 @@ impl UserBucketRepository {
         bucket_id: String,
         right: RightType,
     ) -> Result<(), AppError> {
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_id", user_id);
-        params.insert("bucket_id", bucket_id);
-        let list = self.dao.query_by_params(params.clone()).await?;
+        let list = self.dao.query_by_params(vec![
+            QueryParam::eq("user_id",user_id.as_str()),
+            QueryParam::eq("bucket_id",bucket_id.as_str())
+        ]).await?;
         if (list.len() == 1) {
+            let mut params: HashMap<&str, String> = HashMap::new();
             params.insert(
                 "right",
                 match right {
@@ -224,6 +219,9 @@ impl UserBucketRepository {
             self.dao.change(list[0].id, params).await?;
             return Ok(());
         } else {
+            let mut params: HashMap<&str, String> = HashMap::new();
+            params.insert("user_id", user_id.to_string());
+            params.insert("bucket_id", bucket_id.to_string());
             params.insert(
                 "right",
                 match right {

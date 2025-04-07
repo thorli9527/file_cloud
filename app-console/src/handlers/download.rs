@@ -6,9 +6,12 @@ use model::{
 };
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use tempfile::tempdir;
 
 use actix_web::http::header;
+use async_stream::stream;
+use hex::encode;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::io::ReaderStream;
@@ -82,6 +85,10 @@ async fn download_path(
         let output_path = data_dir.join(&file.name);
         let mut output_file = File::create(&output_path).await?;
         for item in file.items.iter() {
+            let path = Path::new(&item.path);
+            if !path.exists(){
+                return Err(AppError::InternalError("file not exists".to_owned()));
+            }
             let mut chunk_file = File::open(&*item.path).await?;
             let mut buffer = Vec::new();
             chunk_file.read_to_end(&mut buffer).await?;
@@ -146,10 +153,9 @@ async fn download(
         let mut item_file = File::open(&item.path).await.unwrap();
         item_file.read_to_end(&mut buffer).await?;
     }
+    let accachement_name=format!("attachment; filename={}",&file_info.name);
     Ok(HttpResponse::Ok()
-        .append_header((
-            "Content-Disposition",
-            format!("attachment; filename=\"{}\"", file_info.name),
-        ))
+        .append_header((header::CONTENT_TYPE, "application/zip"))
+        .append_header((header::CONTENT_DISPOSITION, accachement_name))
         .body(buffer))
 }

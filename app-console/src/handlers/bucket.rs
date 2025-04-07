@@ -19,8 +19,7 @@ async fn list(
     page: web::Json<PageInfo>,
     bucket_rep: Data<BucketRepository>,
 ) -> std::result::Result<impl Responder, AppError> {
-    let params: HashMap<&str, String> = HashMap::new();
-    let page_result = bucket_rep.dao.query_by_page(params, &page).await?;
+    let page_result = bucket_rep.dao.query_by_page(vec![], &page).await?;
     Ok(web::Json(result_page(page_result)))
 }
 

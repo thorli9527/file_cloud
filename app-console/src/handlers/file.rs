@@ -3,7 +3,7 @@ use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::{Local, NaiveDateTime};
 use common::{build_snow_id, build_time, get_session_user, result, result_data, result_list, AppError, AppState, OrderType, RightType};
 use model::date_format::date_format;
-use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathDelTask, PathDelTaskRepository, PathRepository, Repository, UserBucketRepository, UserRepository};
+use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathDelTask, PathDelTaskRepository, PathRepository, QueryParam, Repository, UserBucketRepository, UserRepository};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use log::error;
@@ -96,7 +96,7 @@ async fn del_path(
         return Err(AppError::NoRight("no.right".to_string()));
     }
     let now = Local::now();
-    let path_del_task = PathDelTask { id: build_snow_id(), path_id: *path_id, del_file_status: false, del_path_status: false,create_time:now.naive_local()};
+    let path_del_task = PathDelTask { id: build_snow_id(), path_id: *path_id, del_file_status: false, del_path_status: false, create_time: now.naive_local() };
     path_del_task_rep.create(path_del_task, &path_rep).await?;
     Ok(web::Json(result()))
 }
@@ -155,26 +155,35 @@ async fn file_del(
 #[post("/file/list")]
 async fn file_list(
     query: web::Json<PathQuery>,
-    user_reg: Data<UserRepository>,
     file_rep: Data<FileRepository>,
     path_rep: Data<PathRepository>,
     user_bucket_rep: Data<UserBucketRepository>,
 ) -> Result<impl Responder, AppError> {
-    let mut params: HashMap<&str, String> = HashMap::new();
+    let mut params=vec![];
+    // let mut params: HashMap<&str, String> = HashMap::new();
     if (query.path_id == 0) {
-        params.insert("root", "1".to_owned());
+        // params.insert("root", "1".to_owned());
+        params.push(QueryParam::eq("root", "1".to_owned().as_str()));
     }
     let mut result_list: Vec<FileResult> = Vec::new();
-    params.insert("bucket_id", query.bucket_id.to_string());
+    params.push(QueryParam::eq("bucket_id", query.bucket_id.to_string().as_str()));
     if query.query_type == QueryDataType::DIR {
         let mut path_params = params.clone();
         if (query.path_id != 0) {
-            path_params.insert("parent", query.path_id.to_string());
+            path_params.push(QueryParam::eq("parent", query.path_id.to_string().as_str()));
         }
-        let path_list = path_rep
-            .dao
-            .query_by_max_id(query.max_id, path_params, OrderType::ASC, &query.page_size)
-            .await?;
+        let mut path_query=params.clone();
+        if query.search_key.is_some() {
+            match &query.search_key{
+                Some(key) => {
+                    path_query.push(QueryParam::like_end("path", key));
+                }
+                None => {}
+            }
+        }
+        path_query.push(QueryParam::eq("bucket_id", query.bucket_id.to_string().as_str()));
+        path_query.push(QueryParam::eq("parent", query.path_id.to_string().as_str()));
+        let path_list = path_rep.dao.query_by_max_id(query.max_id,path_query, OrderType::ASC, &query.page_size).await?;
         for item in path_list {
             let path_file_name = format!("{}{}", &item.full_path, "/");
             let x = file_rep.path_size(&path_file_name).await?;
@@ -197,11 +206,19 @@ async fn file_list(
         file_max_id = query.max_id;
     }
     if current_data_size < page_size {
-        params.insert("path_ref", query.path_id.to_string());
+        params.push(QueryParam::eq("path_ref", query.path_id.to_string().as_str()));
+        if query.search_key.is_some() {
+            match &query.search_key{
+                Some(key) => {
+                    params.push(QueryParam::like_end("name", key));
+                }
+                None => {}
+            }
+        }
         let limit_size = (page_size - current_data_size) as i16;
         let file_list = file_rep
             .dao
-            .query_by_max_id(file_max_id, params.clone(), OrderType::ASC, &limit_size)
+            .query_by_max_id(file_max_id, params, OrderType::ASC, &limit_size)
             .await?;
         for item in file_list {
             let file = FileResult {
@@ -233,6 +250,7 @@ struct PathQuery {
     bucket_id: i64,
     page_size: i16,
     query_type: QueryDataType,
+    search_key: Option<String>,
     max_id: i64,
 }
 #[derive(Debug, Deserialize, Serialize)]
