@@ -1,7 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::{Datelike, Local, Timelike};
-use common::{build_id, build_snow_id, build_time, get_session_user, result, result_data, result_error_msg, AppError, AppState, RightType};
+use common::{build_id, build_snow_id, build_time, get_session_user, result, result_data, result_error_msg, AppError, AppState};
 use futures_util::StreamExt;
 use model::*;
 use moka::future::Cache;

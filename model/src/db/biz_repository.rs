@@ -1,5 +1,5 @@
 use crate::{query_by_sql, BaseRepository, Bucket, FileInfo, FileItemDto, PathDelTask, PathInfo, QueryParam, Repository, UserBucket, UserBucketRight, UserInfo};
-use common::{build_md5, build_snow_id, build_time, AppError, RightType};
+use common::{build_md5, build_snow_id, build_time, AppError};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -46,10 +46,10 @@ impl UserRepository {
         }
     }
     pub async fn find_by_name(&self, user_name: String) -> Result<UserInfo, AppError> {
-        return self.dao.find_by_one(vec![QueryParam::eq("user_name",user_name.as_str())]).await;
+        return self.dao.find_by_one(vec![QueryParam::eq("user_name", user_name.as_str())]).await;
     }
     pub async fn login(&self, user_name: &String, password: &String) -> Result<UserInfo, AppError> {
-        let user_result = self.dao.query_by_params(vec![QueryParam::eq("user_name",user_name.as_str())]).await?;
+        let user_result = self.dao.query_by_params(vec![QueryParam::eq("user_name", user_name.as_str())]).await?;
         if user_result.len() > 0 {
             let info = &user_result[0];
             if info.password == build_md5(password) {
@@ -105,7 +105,7 @@ impl BucketRepository {
         }
     }
     pub async fn find_by_name(&self, name: &String) -> Result<Bucket, AppError> {
-        return self.dao.find_by_one(vec![QueryParam::eq("name",name.to_string().as_str())]).await;
+        return self.dao.find_by_one(vec![QueryParam::eq("name", name.to_string().as_str())]).await;
     }
 }
 
@@ -178,10 +178,14 @@ impl FileRepository {
     }
 }
 #[derive(Debug, Serialize, Deserialize, FromRow, Validate, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BucketInfoResult {
+    pub id:i64,
     pub bucket_id: i64,
-    pub name: String,
-    pub right: RightType,
+    pub user_id: i64,
+    pub user_name: String,
+    //0 读 1 写 2 读写
+    pub user_right: i32,
 }
 
 pub struct UserBucketRepository {
@@ -197,41 +201,26 @@ impl UserBucketRepository {
 
     pub async fn change_right(
         &self,
-        user_id: String,
-        bucket_id: String,
-        right: RightType,
+        user_id: i64,
+        bucket_id: i64,
+        right: i32,
     ) -> Result<(), AppError> {
         let list = self.dao.query_by_params(vec![
-            QueryParam::eq("user_id",user_id.as_str()),
-            QueryParam::eq("bucket_id",bucket_id.as_str())
+            QueryParam::eq("user_id", user_id.to_string().as_str()),
+            QueryParam::eq("bucket_id", bucket_id.to_string().as_str())
         ]).await?;
         if (list.len() == 1) {
             let mut params: HashMap<&str, String> = HashMap::new();
-            params.insert(
-                "right",
-                match right {
-                    RightType::Read => "read",
-                    RightType::Write => "write",
-                    RightType::ReadWrite => "read_write",
-                }
-                    .to_string(),
-            );
+            params.insert("user_right",right.to_string(),);
             self.dao.change(list[0].id, params).await?;
             return Ok(());
         } else {
             let mut params: HashMap<&str, String> = HashMap::new();
+            params.insert("id", build_snow_id().to_string());
             params.insert("user_id", user_id.to_string());
             params.insert("bucket_id", bucket_id.to_string());
-            params.insert(
-                "right",
-                match right {
-                    RightType::Read => "read",
-                    RightType::Write => "write",
-                    RightType::ReadWrite => "read_write",
-                }
-                    .to_string(),
-            );
-            self.dao.insert(params.clone());
+            params.insert("user_right",right.to_string(),);
+            self.dao.insert(params).await?;
         }
         Ok(())
     }
@@ -240,6 +229,7 @@ impl UserBucketRepository {
         let params: HashMap<&str, String> = HashMap::new();
         let sql = format!(r#"
             SELECT distinct
+                user_bucket.id,
                 bucket.id as bucket_id,
                 user_bucket.`right`,
                 bucket.`name`
@@ -256,38 +246,34 @@ impl UserBucketRepository {
             WHERE
                 user_bucket.user_id = {} and bucket_id={}
                 "#, user_id, bucket_id);
-        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
+        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, vec![]).await?;
         Ok(vec)
     }
 
-    pub async fn query_by_user_name(
+    pub async fn query_by_bucket_id(
         &self,
-        user_id: &String,
+        bucket_id: &i64,
     ) -> Result<Vec<BucketInfoResult>, AppError> {
-        if user_id.is_empty() {
-            return Err(AppError::BizError("user_name.is_empty".to_owned()));
+        if bucket_id == &0 {
+            return Err(AppError::InvalidInput("InvalidInput bucketId".to_owned()));
         }
-        let mut params: HashMap<&str, String> = HashMap::new();
-        params.insert("user_name", user_id.to_string());
-        let sql = r#"
-            select distinct
-                bucket.id as bucket_id,
-                user_bucket.`right`,
-                bucket.`name`
-            from
-                user_bucket
-                inner join
-                user_info
-                on
-                    user_bucket.user_id = user_info.id
-                inner join
-                bucket
-                on
-                    user_bucket.bucket_id = bucket.id
-            where
-                user_info.user_name =?
-                "#;
-        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, params).await?;
+        let sql = format!(r#"
+         SELECT
+            user_bucket.bucket_id,
+            user_info.user_name,
+            user_info.id as user_id,
+            user_bucket.id,
+            user_bucket.user_right
+        FROM
+            user_bucket
+            INNER JOIN
+            user_info
+            ON
+                user_bucket.user_id = user_info.id
+        WHERE
+            user_bucket.bucket_id = {}
+                "#, bucket_id);
+        let vec = query_by_sql::<BucketInfoResult>(self.dao.pool.clone(), &sql, vec![]).await?;
         Ok(vec)
     }
 }

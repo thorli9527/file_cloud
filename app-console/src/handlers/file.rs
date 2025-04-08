@@ -1,7 +1,7 @@
 use actix_web::web::Data;
 use actix_web::{post, web, App, HttpRequest, Responder};
 use chrono::{Local, NaiveDateTime};
-use common::{build_snow_id, build_time, get_session_user, result, result_data, result_list, AppError, AppState, OrderType, RightType};
+use common::{build_snow_id, build_time, get_session_user, result, result_data, result_list, AppError, AppState, OrderType};
 use model::date_format::date_format;
 use model::{BucketRepository, FileInfo, FileRepository, FileType, ImageType, PathDelTask, PathDelTaskRepository, PathRepository, QueryParam, Repository, UserBucketRepository, UserRepository};
 use serde::{Deserialize, Serialize};
@@ -36,11 +36,11 @@ pub async fn mkdir(dto: web::Json<PathNewDao>,
         if user_bucket.is_empty() {
             return Err(AppError::NoRight("no.right".to_string()));
         }
-        match &user_bucket[0].right {
-            RightType::Write => {
+        match &user_bucket[0].user_right {
+            1 => {
                 right = true;
             }
-            RightType::ReadWrite => {
+            2 => {
                 right = true;
             }
             _ => {
@@ -80,11 +80,11 @@ async fn del_path(
         if user_bucket.is_empty() {
             return Err(AppError::NoRight("no.right".to_string()));
         }
-        match &user_bucket[0].right {
-            RightType::Write => {
+        match &user_bucket[0].user_right {
+            1 => {
                 right = true;
             }
-            RightType::ReadWrite => {
+            2 => {
                 right = true;
             }
             _ => {
@@ -124,8 +124,11 @@ async fn file_del(
         let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id, &bucket_info.id).await?;
         for user_bucket_tmp in &user_bucket_list_right {
             if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
-                match &user_bucket_tmp.right {
-                    RightType::Write => {
+                match &user_bucket_tmp.user_right {
+                    1 => {
+                        has_right = false;
+                    }
+                    2 => {
                         has_right = false;
                     }
                     (item) => {

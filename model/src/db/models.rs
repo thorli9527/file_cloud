@@ -1,5 +1,4 @@
 use crate::date_format::date_format;
-use common::RightType;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::NaiveDateTime;
 use sqlx::types::Json;
@@ -31,20 +30,20 @@ pub struct UserBucket {
     pub id: i64,
     pub user_id: i64,
     pub bucket_id: i64,
-    pub right: RightType,
+    pub user_right: i32,
 }
 #[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct UserBucketRight {
     pub access_key: String,
     pub secret_key: String,
     pub bucket_name: String,
-    pub right: RightType,
+    pub right: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow,Clone)]
 pub struct UserBucketRightQueryResult {
     pub bucket_name: String,
-    pub right: RightType,
+    pub right: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow,Clone)]

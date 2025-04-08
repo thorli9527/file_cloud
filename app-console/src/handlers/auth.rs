@@ -41,16 +41,17 @@ pub async fn login(
     let mut bucket_cache_list: Vec<BucketCache> = Vec::new();
     for bucket in bucket_list {
         bucket_cache_list.push(BucketCache {
+            right_id:bucket.id,
             bucket_id: bucket.bucket_id,
-            name: bucket.name.clone(),
-            right: bucket.right,
+            name: bucket.user_name.clone(),
+            right_type: bucket.user_right,
         });
     }
     let user_cache = UserCache {
         id: result.id,
         is_admin: result.is_admin.clone(),
         user_name: result.user_name.clone(),
-        bucket_list:bucket_cache_list,
+        bucket_list:vec![],
     };
     state.session_cache.insert(session_id.clone(),user_cache).await;
     Ok(web::Json(result_data(LoginResult {

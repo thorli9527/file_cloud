@@ -10,13 +10,28 @@ pub async fn query_by_sql<T: for<'r> FromRow<'r, sqlx::mysql::MySqlRow> + Clone 
 (
     pool: Arc<MySqlPool>,
     sql: &str,
-    params: HashMap<&str, impl AsRef<str> + std::marker::Send>,
+    params: Vec<QueryParam>,
 ) -> Result<Vec<T>, AppError> {
-    let mut sql_query = sqlx::query_as::<_, T>(sql);
-    for (key, value) in &params {
-        sql_query = sql_query.bind(value.as_ref());
+    let (where_clause, values) = build_where_clause(&params);
+    // let mut sql_query = sqlx::query_as::<_, T>(sql);
+    // for value in values {
+    //     sql_query = sql_query.bind(value);
+    // }
+    //
+    // let result = sql_query.fetch_all(pool).await?;
+    // Ok(result)
+
+
+
+
+
+    let mut sql_query = sqlx::query_as::<_, T>(&sql);
+    for value in values {
+        sql_query = sql_query.bind(value);
     }
-    Ok(sql_query.fetch_all(&*pool).await?)
+
+    let result = sql_query.fetch_all(&*pool).await?;
+    Ok(result)
 }
 /// 定义 Repository Trait，所有 Repository 都要实现这些方法
 #[async_trait]
@@ -139,8 +154,6 @@ where
 
     async fn insert(&self, params: HashMap<&str,String>) -> Result<u64, AppError> {
         let keys: Vec<&str> = params.keys().cloned().collect();
-        let values: Vec<String> = params.values().cloned().collect();
-
         let placeholders = vec!["?"; keys.len()].join(", ");
         let query = format!(
             "INSERT INTO {} ({}) VALUES ({})",
@@ -150,9 +163,12 @@ where
         );
 
         let mut sql_query = sqlx::query(&query);
-        for value in values {
+        for key_item in keys {
+            let value = params.get(key_item).unwrap();
             sql_query = sql_query.bind(value);
+            println!(" → Param[{}],value:{}", key_item, value);
         }
+        println!(" → sql:{}",&query);
         let result = sql_query.execute(&*self.pool).await?;
         Ok(result.rows_affected())
     }

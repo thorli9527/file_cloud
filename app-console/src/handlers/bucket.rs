@@ -13,6 +13,8 @@ pub fn configure(cfg: &mut web::ServiceConfig, state: Data<AppState>) {
     cfg.service(list);
     cfg.service(bucket_delete);
     cfg.service(save);
+    cfg.service(user_list);
+    cfg.service(user_right_bind);
 }
 #[post("/bucket/list")]
 async fn list(
@@ -21,6 +23,41 @@ async fn list(
 ) -> std::result::Result<impl Responder, AppError> {
     let page_result = bucket_rep.dao.query_by_page(vec![], &page).await?;
     Ok(web::Json(result_page(page_result)))
+}
+// #[post("/bucket/user")]
+// async fn user_list(
+//     page: web::Json<PageInfo>,
+//     bucket_rep: Data<BucketRepository>,
+// ) -> std::result::Result<impl Responder, AppError> {
+//     let page_result = bucket_rep.dao.query_by_page(vec![], &page).await?;
+//     Ok(web::Json(result_page(page_result)))
+// }
+
+
+#[post("/bucket/user/{bucket_id}")]
+async fn user_list(
+    bucket_id: web::Path<i64>,
+    user_bucket_reg: web::Data<UserBucketRepository>,
+) -> std::result::Result<impl Responder, AppError> {
+    Ok(web::Json(result_list(user_bucket_reg.query_by_bucket_id(&*bucket_id).await?)))
+}
+
+#[derive(Debug, Deserialize, Validate,Clone)]
+#[serde(rename_all = "camelCase")]
+struct UserBucketNew {
+    bucket_id: i64,
+    user_id: i64,
+    right_type: i32,
+}
+
+#[post("/bucket/user/right/bind")]
+async fn user_right_bind(
+    data: web::Json<UserBucketNew>,
+    user_bucket_rep: Data<UserBucketRepository>,
+) -> std::result::Result<impl Responder, AppError> {
+    &data.validate();
+    user_bucket_rep.change_right(data.user_id,data.bucket_id,  data.right_type.clone()).await?;
+    return Ok(web::Json(result()));
 }
 
 

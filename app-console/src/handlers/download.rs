@@ -1,5 +1,5 @@
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
-use common::{do_zip, get_session_user, AppError, AppState, RightType};
+use common::{do_zip, get_session_user, AppError, AppState};
 use model::{
     BucketRepository, FileInfo, FileRepository, PathInfo, PathRepository, Repository,
     UserBucketRepository,
@@ -39,12 +39,12 @@ async fn download_path(
         let user_bucket_list = user_bucket_rep.query_by_user_id_and_bucket_Id(&user.id,&bucket_id).await?;
         for user_bucket in user_bucket_list {
             if user_bucket.bucket_id == bucket_id {
-                match &user_bucket.right {
-                    RightType::Read => {
+                match &user_bucket.user_right {
+                    0 => {
                         has_right = true;
                         break;
                     }
-                    RightType::ReadWrite => {
+                    2 => {
                         has_right = true;
                         break;
                     }
@@ -132,8 +132,8 @@ async fn download(
         let user_bucket_list_right = user_bucket_rep.query_by_user_id_and_bucket_Id(&user_id,&bucket_info.id).await?;
         for user_bucket_tmp in &user_bucket_list_right {
             if &user_bucket_tmp.bucket_id == &file_info.bucket_id {
-                match &user_bucket_tmp.right {
-                    RightType::Write => {
+                match &user_bucket_tmp.user_right {
+                    1 => {
                         has_right = false;
                     }
                     (item) => {
